@@ -103,44 +103,65 @@ export default function DatesPage() {
 
   const displayedDates = activeTab === "upcoming" ? upcomingDates : pastDates;
 
+  // Auto-detect emoji by event keywords
+  const getEventIcon = (title: string) => {
+    const lower = title.toLowerCase();
+    if (lower.includes("ужин") || lower.includes("ресторан") || lower.includes("еда") || lower.includes("кафе") || lower.includes("вино") || lower.includes("бар")) return "🍽️";
+    if (lower.includes("кино") || lower.includes("фильм") || lower.includes("сериал") || lower.includes("кинотеатр")) return "🍿";
+    if (lower.includes("прогулка") || lower.includes("парк") || lower.includes("гулять") || lower.includes("лес")) return "🌳";
+    if (lower.includes("поездка") || lower.includes("путешествие") || lower.includes("отель") || lower.includes("самолет") || lower.includes("море")) return "✈️";
+    if (lower.includes("театр") || lower.includes("музей") || lower.includes("выставка") || lower.includes("концерт")) return "🎭";
+    if (lower.includes("спорт") || lower.includes("актив") || lower.includes("каток") || lower.includes("лыжи") || lower.includes("велосипед")) return "⛸️";
+    if (lower.includes("игры") || lower.includes("плойка") || lower.includes("настолки") || lower.includes("игру")) return "🎮";
+    if (lower.includes("кофе") || lower.includes("чай") || lower.includes("кофейня")) return "☕";
+    return "💖";
+  };
+
   return (
     <div className="flex flex-col gap-5 pb-6">
       {/* Page Header */}
       <div className="flex items-center justify-between mt-4">
-        <h1 className="text-xl font-bold tracking-tight text-slate-800 dark:text-rose-100 flex items-center gap-1.5">
+        <h1 className="text-2xl font-black tracking-tight text-slate-800 dark:text-rose-100 flex items-center gap-1.5">
           Свидания <span className="text-rose-500">❤️</span>
         </h1>
         <button
           onClick={() => setIsModalOpen(true)}
-          className="h-10 px-4 rounded-full bg-rose-500 hover:bg-rose-600 text-white text-xs font-bold shadow-md shadow-rose-200 flex items-center gap-1 transition-all"
+          className="h-10 px-4.5 rounded-full bg-rose-gradient text-white text-xs font-bold shadow-md shadow-rose-200/50 flex items-center gap-1 transition-all active:scale-95"
         >
           <Plus className="h-4 w-4" />
-          Запланировать
+          Создать
         </button>
       </div>
 
       {/* Tabs Switcher */}
-      <div className="flex bg-slate-100 dark:bg-slate-900/60 p-1 rounded-xl">
+      <div className="flex bg-slate-100 dark:bg-slate-900/60 p-1.5 rounded-2xl relative">
         <button
           onClick={() => setActiveTab("upcoming")}
-          className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
+          className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all duration-300 relative z-10 ${
             activeTab === "upcoming"
-              ? "bg-white dark:bg-slate-800 text-rose-500 shadow-sm"
-              : "text-slate-500 hover:text-slate-700 dark:text-slate-400"
+              ? "text-rose-500"
+              : "text-slate-500 dark:text-slate-400"
           }`}
         >
           Предстоящие ({upcomingDates.length})
         </button>
         <button
           onClick={() => setActiveTab("past")}
-          className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
+          className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all duration-300 relative z-10 ${
             activeTab === "past"
-              ? "bg-white dark:bg-slate-800 text-rose-500 shadow-sm"
-              : "text-slate-500 hover:text-slate-700 dark:text-slate-400"
+              ? "text-rose-500"
+              : "text-slate-500 dark:text-slate-400"
           }`}
         >
           Прошедшие ({pastDates.length})
         </button>
+        
+        {/* Sliding Capsule Indicator */}
+        <div
+          className={`absolute top-1.5 bottom-1.5 w-[calc(50%-6px)] bg-white dark:bg-slate-800 rounded-xl shadow-sm transition-all duration-300 ease-out ${
+            activeTab === "upcoming" ? "left-1.5" : "left-[calc(50%)]"
+          }`}
+        ></div>
       </div>
 
       {/* Dates List */}
@@ -152,11 +173,8 @@ export default function DatesPage() {
         <div className="flex flex-col gap-4">
           {displayedDates.map((date) => {
             const dateObj = new Date(date.dateTime);
-            const formattedDate = dateObj.toLocaleDateString("ru-RU", {
-              weekday: "short",
-              month: "short",
-              day: "numeric",
-            });
+            const formattedMonth = dateObj.toLocaleDateString("ru-RU", { month: "short" }).replace(".", "");
+            const formattedDay = dateObj.getDate();
             const formattedTime = dateObj.toLocaleTimeString("ru-RU", {
               hour: "2-digit",
               minute: "2-digit",
@@ -165,39 +183,58 @@ export default function DatesPage() {
             return (
               <div
                 key={date.id}
-                className="glass-card rounded-2xl p-5 relative overflow-hidden transition-all duration-300 hover:shadow-md"
+                className="glass-card rounded-2xl flex overflow-hidden min-h-28 relative shadow-sm hover:shadow-md transition-shadow"
               >
-                <div className="flex justify-between items-start">
-                  <h3 className="font-bold text-slate-800 dark:text-rose-100 text-base">
-                    {date.title}
-                  </h3>
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-rose-100 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400 font-bold">
-                    {date.createdById === user?.telegramId ? "Вы пригласили" : "Вас пригласили"}
-                  </span>
-                </div>
-
-                {date.description && (
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 line-clamp-2">
-                    {date.description}
-                  </p>
-                )}
-
-                {/* Details grid */}
-                <div className="mt-4 pt-4 border-t border-slate-100 dark:border-rose-950/20 grid grid-cols-2 gap-3 text-xs text-slate-600 dark:text-slate-300">
-                  <div className="flex items-center gap-1.5">
-                    <Calendar className="h-4 w-4 text-rose-400 flex-shrink-0" />
-                    <span className="truncate capitalize">{formattedDate}</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <Clock className="h-4 w-4 text-rose-400 flex-shrink-0" />
-                    <span>{formattedTime}</span>
+                {/* Left highlight strip */}
+                <div className={`w-1.5 flex-shrink-0 ${date.createdById === user?.telegramId ? "bg-rose-gradient" : "bg-partner-gradient"}`}></div>
+                
+                {/* Left section (70%): Details */}
+                <div className="flex-1 p-4.5 flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xl flex-shrink-0">{getEventIcon(date.title)}</span>
+                      <h3 className="font-extrabold text-slate-800 dark:text-rose-100 text-sm leading-tight">
+                        {date.title}
+                      </h3>
+                    </div>
+                    {date.description && (
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-2 line-clamp-2 leading-relaxed">
+                        {date.description}
+                      </p>
+                    )}
                   </div>
                   {date.location && (
-                    <div className="flex items-center gap-1.5 col-span-2">
-                      <MapPin className="h-4 w-4 text-rose-400 flex-shrink-0" />
-                      <span className="truncate">{date.location}</span>
+                    <div className="flex items-center gap-1 text-[10px] text-slate-500 dark:text-slate-400 mt-2.5">
+                      <MapPin className="h-3.5 w-3.5 text-rose-400 flex-shrink-0" />
+                      <span className="truncate max-w-[160px] font-semibold">{date.location}</span>
                     </div>
                   )}
+                </div>
+
+                {/* Dotted Tear Line */}
+                <div className="w-[1px] border-l-2 border-dashed border-rose-200/50 dark:border-rose-950/20 relative flex flex-col justify-between py-2">
+                  <div className="absolute top-[-6px] left-[-7px] w-3 h-3 rounded-full bg-background border-b border-rose-200/30 dark:border-rose-950/20"></div>
+                  <div className="absolute bottom-[-6px] left-[-7px] w-3 h-3 rounded-full bg-background border-t border-rose-200/30 dark:border-rose-950/20"></div>
+                </div>
+
+                {/* Right section (30%): Date & Time Stub */}
+                <div className="w-24 bg-rose-50/15 dark:bg-slate-900/10 flex flex-col items-center justify-center p-3 text-center">
+                  <span className="text-[9px] font-extrabold text-rose-400 dark:text-rose-300 uppercase tracking-widest leading-none">
+                    {formattedMonth}
+                  </span>
+                  <span className="text-2xl font-black text-rose-500 dark:text-rose-200 mt-1 leading-none">
+                    {formattedDay}
+                  </span>
+                  <span className="text-[10px] font-extrabold text-slate-500 dark:text-slate-400 mt-1.5 flex items-center gap-0.5 leading-none">
+                    <Clock className="h-2.5 w-2.5" /> {formattedTime}
+                  </span>
+                  <span className={`text-[8px] font-black mt-2.5 px-2 py-0.5 rounded-full uppercase tracking-wider ${
+                    date.createdById === user?.telegramId
+                      ? "bg-rose-100/60 text-rose-600 dark:bg-rose-950/30 dark:text-rose-400"
+                      : "bg-indigo-100/60 text-indigo-600 dark:bg-indigo-950/30 dark:text-indigo-400"
+                  }`}>
+                    {date.createdById === user?.telegramId ? "Вы" : "Партнер"}
+                  </span>
                 </div>
               </div>
             );
@@ -221,22 +258,22 @@ export default function DatesPage() {
 
       {/* Schedule Date Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-fade-in">
           <form
             onSubmit={handleSubmit}
-            className="glass-card rounded-3xl w-full max-w-sm p-6 shadow-xl flex flex-col gap-4 overflow-y-auto max-h-[90vh]"
+            className="glass-card rounded-3xl w-full max-w-sm p-6 shadow-2xl flex flex-col gap-4 overflow-y-auto max-h-[90vh] animate-float"
           >
             <div>
-              <h3 className="text-lg font-bold text-slate-800 dark:text-rose-100 flex items-center gap-1">
-                Свидание мечты <Heart className="h-4 w-4 text-rose-500 fill-rose-500" />
+              <h3 className="text-lg font-bold text-slate-800 dark:text-rose-100 flex items-center gap-1.5">
+                Свидание мечты <Heart className="h-5 w-5 text-rose-500 fill-rose-500" />
               </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                Заполните детали. Мы уведомим вашего партнера через бота!
+                Заполните детали. Мы сразу уведомим вашего партнера через бота!
               </p>
             </div>
 
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+              <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
                 Название свидания
               </label>
               <input
@@ -244,27 +281,27 @@ export default function DatesPage() {
                 required
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="Например, Романтический ужин при свечах"
-                className="h-10 px-3.5 rounded-xl border border-rose-200 dark:border-rose-950/50 bg-white/50 dark:bg-slate-900/50 text-slate-800 dark:text-rose-100 text-xs outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400"
+                placeholder="Романтический ужин, поход в кино..."
+                className="h-11 px-4 rounded-xl border border-rose-200 dark:border-rose-950/50 bg-white/50 dark:bg-slate-900/50 text-slate-800 dark:text-rose-100 text-xs outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400 transition-all"
               />
             </div>
 
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+              <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
                 Место встречи
               </label>
               <input
                 type="text"
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
-                placeholder="Ресторан, парк, домашний кинотеатр"
-                className="h-10 px-3.5 rounded-xl border border-rose-200 dark:border-rose-950/50 bg-white/50 dark:bg-slate-900/50 text-slate-800 dark:text-rose-100 text-xs outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400"
+                placeholder="Ресторан, парк, дома..."
+                className="h-11 px-4 rounded-xl border border-rose-200 dark:border-rose-950/50 bg-white/50 dark:bg-slate-900/50 text-slate-800 dark:text-rose-100 text-xs outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400 transition-all"
               />
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div className="flex flex-col gap-1">
-                <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
                   Дата
                 </label>
                 <input
@@ -272,11 +309,11 @@ export default function DatesPage() {
                   required
                   value={dateVal}
                   onChange={(e) => setDateVal(e.target.value)}
-                  className="h-10 px-3 rounded-xl border border-rose-200 dark:border-rose-950/50 bg-white/50 dark:bg-slate-900/50 text-slate-800 dark:text-rose-100 text-xs outline-none focus:border-rose-400"
+                  className="h-11 px-3.5 rounded-xl border border-rose-200 dark:border-rose-950/50 bg-white/50 dark:bg-slate-900/50 text-slate-800 dark:text-rose-100 text-xs outline-none focus:border-rose-400 transition-all"
                 />
               </div>
               <div className="flex flex-col gap-1">
-                <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
                   Время
                 </label>
                 <input
@@ -284,21 +321,21 @@ export default function DatesPage() {
                   required
                   value={timeVal}
                   onChange={(e) => setTimeVal(e.target.value)}
-                  className="h-10 px-3 rounded-xl border border-rose-200 dark:border-rose-950/50 bg-white/50 dark:bg-slate-900/50 text-slate-800 dark:text-rose-100 text-xs outline-none focus:border-rose-400"
+                  className="h-11 px-3.5 rounded-xl border border-rose-200 dark:border-rose-950/50 bg-white/50 dark:bg-slate-900/50 text-slate-800 dark:text-rose-100 text-xs outline-none focus:border-rose-400 transition-all"
                 />
               </div>
             </div>
 
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+              <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
                 Описание / Детали
               </label>
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="Что надеть, что взять с собой, секретный дресс-код..."
+                placeholder="Секретный дресс-код, что взять с собой..."
                 rows={3}
-                className="p-3 rounded-xl border border-rose-200 dark:border-rose-950/50 bg-white/50 dark:bg-slate-900/50 text-slate-800 dark:text-rose-100 text-xs outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400 resize-none"
+                className="p-3.5 rounded-xl border border-rose-200 dark:border-rose-950/50 bg-white/50 dark:bg-slate-900/50 text-slate-800 dark:text-rose-100 text-xs outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400 resize-none transition-all"
               />
             </div>
 
@@ -306,14 +343,14 @@ export default function DatesPage() {
               <button
                 type="button"
                 onClick={() => setIsModalOpen(false)}
-                className="flex-1 h-10 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-900 dark:hover:bg-slate-800 dark:text-slate-300 text-xs font-bold transition-all"
+                className="flex-1 h-11 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-900 dark:hover:bg-slate-800 dark:text-slate-300 text-xs font-bold transition-all"
               >
                 Отмена
               </button>
               <button
                 type="submit"
                 disabled={submitting}
-                className="flex-1 h-10 rounded-xl bg-rose-500 hover:bg-rose-600 disabled:opacity-50 text-white text-xs font-bold shadow-md shadow-rose-200 transition-all"
+                className="flex-1 h-11 rounded-xl bg-rose-gradient hover:opacity-95 disabled:opacity-50 text-white text-xs font-bold shadow-md shadow-rose-200 transition-all active:scale-95"
               >
                 {submitting ? "Приглашаем..." : "Пригласить"}
               </button>

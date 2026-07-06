@@ -99,43 +99,87 @@ export async function authenticateTelegramUser(authHeader: string | null) {
   }
 
   const userIdStr = String(tgUser.id);
-  const whitelistStr = process.env.ALLOWED_TELEGRAM_IDS || "";
-  const whitelistedIds = whitelistStr
-    .split(",")
-    .map((id) => id.trim())
-    .filter(Boolean);
 
-  if (!whitelistedIds.includes(userIdStr)) {
-    return { error: `Telegram ID ${userIdStr} is not whitelisted`, status: 403 };
+  // Extract start_param from token if present (both in mock and real Telegram)
+  let startParam: string | null = null;
+  if (token.startsWith("mock_") || !isNaN(Number(token))) {
+    if (token.includes("?")) {
+      const urlParams = new URLSearchParams(token.substring(token.indexOf("?")));
+      startParam = urlParams.get("start_param");
+    }
+  } else {
+    try {
+      const params = new URLSearchParams(token);
+      startParam = params.get("start_param");
+    } catch (e) {
+      console.error("Error parsing startParam:", e);
+    }
   }
 
-  // Get or create shared Couple
-  let couple = await prisma.couple.findFirst();
-  if (!couple) {
-    couple = await prisma.couple.create({
-      data: {
-        startDate: new Date(), // default to today, user can edit later
-      },
-    });
-  }
-
-  // Find or create User in the database
+  // Find user and their couple if they already exist
   let dbUser = await prisma.user.findUnique({
     where: { telegramId: userIdStr },
+    include: {
+      couple: {
+        include: {
+          users: true,
+        },
+      },
+    },
   });
 
+  let couple = dbUser?.couple || null;
+
   if (!dbUser) {
+    // User does not exist, let's pair them or create a new couple
+    let coupleToJoin = null;
+
+    if (startParam && startParam.startsWith("couple_")) {
+      const coupleId = startParam.substring(7); // Remove "couple_" prefix
+      try {
+        const existingCouple = await prisma.couple.findUnique({
+          where: { id: coupleId },
+          include: { users: true },
+        });
+
+        // Join only if couple exists and has less than 2 users
+        if (existingCouple && existingCouple.users.length < 2) {
+          coupleToJoin = existingCouple;
+        }
+      } catch (e) {
+        console.error("Error finding couple from startParam:", e);
+      }
+    }
+
+    // If no valid couple to join, create a new one
+    if (!coupleToJoin) {
+      coupleToJoin = await prisma.couple.create({
+        data: {
+          startDate: null, // default to null, can be set later
+        },
+        include: { users: true },
+      });
+    }
+
     dbUser = await prisma.user.create({
       data: {
         telegramId: userIdStr,
         firstName: tgUser.first_name,
         username: tgUser.username || null,
         photoUrl: tgUser.photo_url || null,
-        coupleId: couple.id,
+        coupleId: coupleToJoin.id,
+      },
+      include: {
+        couple: {
+          include: {
+            users: true,
+          },
+        },
       },
     });
+    couple = dbUser.couple;
   } else {
-    // Keep username and first name up-to-date
+    // User already exists, keep their profile info up-to-date
     dbUser = await prisma.user.update({
       where: { telegramId: userIdStr },
       data: {
@@ -143,22 +187,41 @@ export async function authenticateTelegramUser(authHeader: string | null) {
         username: tgUser.username || null,
         photoUrl: tgUser.photo_url || null,
       },
+      include: {
+        couple: {
+          include: {
+            users: true,
+          },
+        },
+      },
     });
+    couple = dbUser.couple;
   }
 
-  // Find partner info (the other ID in the whitelist)
-  const partnerIdStr = whitelistedIds.find((id) => id !== userIdStr);
-  let dbPartner = null;
-  if (partnerIdStr) {
-    dbPartner = await prisma.user.findUnique({
-      where: { telegramId: partnerIdStr },
-    });
+  // Find partner (the other user in the couple)
+  const dbPartner = couple?.users.find((u) => u.telegramId !== userIdStr) || null;
+
+  if (!couple) {
+    return { error: "Failed to initialize couple space", status: 500 };
   }
 
   return {
-    user: dbUser,
-    partnerId: partnerIdStr || null,
-    partner: dbPartner, // Will be null if the partner hasn't logged in yet
-    couple,
+    user: {
+      telegramId: dbUser.telegramId,
+      username: dbUser.username,
+      firstName: dbUser.firstName,
+      photoUrl: dbUser.photoUrl,
+    },
+    partnerId: dbPartner?.telegramId || null,
+    partner: dbPartner ? {
+      telegramId: dbPartner.telegramId,
+      username: dbPartner.username,
+      firstName: dbPartner.firstName,
+      photoUrl: dbPartner.photoUrl,
+    } : null,
+    couple: {
+      id: couple.id,
+      startDate: couple.startDate,
+    },
   };
 }

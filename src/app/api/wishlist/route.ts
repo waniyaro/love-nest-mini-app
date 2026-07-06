@@ -45,7 +45,7 @@ export async function POST(req: Request) {
     if (authResult.partnerId) {
       await sendTelegramNotification(
         authResult.partnerId,
-        `🎁 <b>Новое желание в вишлисте!</b>\n\n<b>${authResult.user.firstName}</b> добавил(а) новый товар: <a href="${url}"><b>${title}</b></a>\n\n<i>Откройте Love Nest, чтобы посмотреть полный список желаний!</i> 🛍️`
+        `🎁 <b>Новое желание в вишлисте!</b>\n\n<b>${authResult.user.firstName}</b> добавил(а) новый товар: <a href="${url}"><b>${title}</b></a>\n\n<i>Откройте IS TWO, чтобы посмотреть полный список желаний!</i> 🛍️`
       );
     }
 

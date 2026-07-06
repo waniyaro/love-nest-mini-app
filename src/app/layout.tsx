@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Love Nest 💖",
+  title: "IS TWO 💖",
   description: "Our little digital nest",
 };
 
@@ -37,9 +37,13 @@ export default function RootLayout({
           strategy="beforeInteractive"
         />
       </head>
-      <body className="min-h-full flex flex-col bg-rose-50/50 text-slate-800 dark:bg-slate-950 dark:text-slate-200">
+      <body className="min-h-full flex flex-col bg-rose-50/50 text-slate-800 dark:bg-slate-950 dark:text-slate-200 relative">
+        {/* Background ambient glow bubbles */}
+        <div className="ambient-glow-pink top-10 left-5"></div>
+        <div className="ambient-glow-indigo bottom-20 right-5"></div>
+
         <TelegramProvider>
-          <main className="mx-auto w-full max-w-md flex-1 pb-24 px-4 pt-4">
+          <main className="mx-auto w-full max-w-md flex-1 pb-24 px-4 pt-4 relative z-10">
             {children}
           </main>
           <Navigation />

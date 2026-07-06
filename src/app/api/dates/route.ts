@@ -55,7 +55,7 @@ export async function POST(req: Request) {
       const locationText = location ? ` в <b>${location}</b>` : "";
       await sendTelegramNotification(
         authResult.partnerId,
-        `💖 <b>Новое приглашение на свидание!</b>\n\n<b>${authResult.user.firstName}</b> приглашает вас на свидание: <b>"${title}"</b>\n📅 Дата и время: <b>${formattedDateTime}</b>${locationText}\n\n<i>Откройте Love Nest, чтобы посмотреть детали!</i> ✨`
+        `💖 <b>Новое приглашение на свидание!</b>\n\n<b>${authResult.user.firstName}</b> приглашает вас на свидание: <b>"${title}"</b>\n📅 Дата и время: <b>${formattedDateTime}</b>${locationText}\n\n<i>Откройте IS TWO, чтобы посмотреть детали!</i> ✨`
       );
     }
 

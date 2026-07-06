@@ -9,8 +9,16 @@ export const bot = new Bot(botToken || "dummy_token");
 if (botToken && botToken !== "YOUR_TELEGRAM_BOT_TOKEN_FROM_BOTFATHER" && botToken !== "dummy_token") {
   bot.command("start", async (ctx) => {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://love-nest-mini-app.vercel.app";
+    const startParam = ctx.match;
+    
+    let webAppUrl = appUrl;
+    if (startParam) {
+      const separator = appUrl.includes("?") ? "&" : "?";
+      webAppUrl = `${appUrl}${separator}tgWebAppStartParam=${startParam}`;
+    }
+
     await ctx.reply(
-      "💖 *Добро пожаловать в Love Nest!* 💖\n\nВаше уютное цифровое пространство для двоих. Здесь вы можете:\n" +
+      "💖 *Добро пожаловать в IS TWO!* 💖\n\nВаше уютное цифровое пространство для двоих. Здесь вы можете:\n" +
       "• Отсчитывать дни ваших отношений\n" +
       "• Планировать романтические свидания\n" +
       "• Вести общий календарь знаменательных дат\n" +
@@ -22,8 +30,8 @@ if (botToken && botToken !== "YOUR_TELEGRAM_BOT_TOKEN_FROM_BOTFATHER" && botToke
           inline_keyboard: [
             [
               {
-                text: "Открыть Love Nest 🌸",
-                web_app: { url: appUrl },
+                text: "Открыть IS TWO 🌸",
+                web_app: { url: webAppUrl },
               },
             ],
           ],
@@ -34,7 +42,7 @@ if (botToken && botToken !== "YOUR_TELEGRAM_BOT_TOKEN_FROM_BOTFATHER" && botToke
 
   bot.command("help", async (ctx) => {
     await ctx.reply(
-      "📝 *Справка Love Nest Bot*\n\n" +
+      "📝 *Справка IS TWO Bot*\n\n" +
       "Этот бот служит мостом для доступа к вашему приложению и присылает уведомления о событиях.\n\n" +
       "• Используйте /start, чтобы получить ссылку на приложение.\n" +
       "• Бот автоматически пришлет вам сообщение, когда ваш партнер запланирует новое свидание!",
