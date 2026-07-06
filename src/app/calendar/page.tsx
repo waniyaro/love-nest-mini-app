@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import { useTelegram } from "@/components/TelegramProvider";
 import { useEffect, useState, useCallback } from "react";
 import { ChevronLeft, ChevronRight, Plus, Star, Gift, PartyPopper } from "lucide-react";

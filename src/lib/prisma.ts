@@ -7,12 +7,11 @@ const globalForPrisma = globalThis as unknown as {
 };
 
 const getPrismaClient = (): PrismaClient => {
-  // If no DATABASE_URL is set yet (e.g. initial setup placeholder), return client without adapter
-  // to avoid pg error on startup, but during request execution it will fail if url is missing.
-  const connectionString = process.env.DATABASE_URL;
+  let connectionString = process.env.DATABASE_URL;
+  
+  // Fallback to a dummy connection string to allow PrismaClient instantiation during build time
   if (!connectionString || connectionString.startsWith("postgres://postgres.xxxxxx")) {
-    // Return standard client or stub if DB not configured yet, so pages can compile
-    return new PrismaClient();
+    connectionString = "postgresql://placeholder_user:placeholder_pwd@localhost:5432/placeholder_db";
   }
 
   const pool = new Pool({ connectionString });

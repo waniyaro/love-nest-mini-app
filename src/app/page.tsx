@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import { useTelegram } from "@/components/TelegramProvider";
 import { useState } from "react";
 import { Heart, Calendar, Share2, Edit2, Check } from "lucide-react";
