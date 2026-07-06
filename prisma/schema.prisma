@@ -1,0 +1,68 @@
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Couple {
+  id        String   @id @default(uuid())
+  startDate DateTime? // The date when the couple started their relationship
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users     User[]
+  dates     DateEvent[]
+  events    CalendarEvent[]
+  wishlist  WishlistItem[]
+}
+
+model User {
+  telegramId String   @id // Telegram user ID (as a String to avoid BigInt JSON serialization issues)
+  username   String?
+  firstName  String
+  photoUrl   String?
+  coupleId   String
+  couple     Couple   @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model DateEvent {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  location    String?
+  dateTime    DateTime
+  isCompleted Boolean  @default(false)
+  coupleId    String
+  couple      Couple   @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+  createdById String   // Telegram ID of the creator
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model CalendarEvent {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  date        DateTime // Date of the event
+  coupleId    String
+  couple      Couple   @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+  createdById String   // Telegram ID of the creator
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model WishlistItem {
+  id          String   @id @default(uuid())
+  title       String
+  url         String
+  isPurchased Boolean  @default(false)
+  coupleId    String
+  couple      Couple   @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+  createdById String   // Telegram ID of the creator
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
