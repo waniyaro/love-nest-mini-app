@@ -131,7 +131,15 @@ export default function Dashboard() {
       <div className="flex items-center justify-between mt-4 px-2">
         <div className="w-9"></div> {/* Spacer to center the title */}
         <h1 className="text-3xl font-black tracking-tight text-slate-800 dark:text-rose-100 flex items-center gap-2">
-          IS TWO <span className="animate-pulse-heart">🌸</span>
+          IS TWO 
+          <div className="glow-heart-container animate-pulse-heart inline-flex">
+            <div className="absolute w-5 h-5 bg-rose-500/30 rounded-full blur-md"></div>
+            <div className="glow-pearl" style={{ top: "1px", left: "3px" }}></div>
+            <div className="glow-pearl" style={{ top: "1px", right: "3px" }}></div>
+            <div className="glow-pearl" style={{ top: "6px", left: "0px" }}></div>
+            <div className="glow-pearl" style={{ top: "6px", right: "0px" }}></div>
+            <div className="glow-pearl-bottom" style={{ bottom: "1px" }}></div>
+          </div>
         </h1>
         <button
           onClick={() => setIsSettingsOpen(true)}
