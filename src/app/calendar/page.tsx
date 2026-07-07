@@ -71,11 +71,21 @@ export default function CalendarPage() {
     setCurrentDate(new Date(year, month + 1, 1));
   };
 
-  // Get events for a specific day in the active calendar view
+  const getYearPlural = (years: number) => {
+    if (years % 10 === 1 && years % 100 !== 11) {
+      return `${years} год`;
+    }
+    if (years % 10 >= 2 && years % 10 <= 4 && (years % 100 < 10 || years % 100 >= 20)) {
+      return `${years} года`;
+    }
+    return `${years} лет`;
+  };
+
+  // Get events for a specific day in the active calendar view (recurring annually)
   const getEventsForDay = (day: number) => {
     return events.filter((e) => {
       const d = new Date(e.date);
-      return d.getDate() === day && d.getMonth() === month && d.getFullYear() === year;
+      return d.getDate() === day && d.getMonth() === month && d.getFullYear() <= year;
     });
   };
 
@@ -245,25 +255,37 @@ export default function CalendarPage() {
 
             {selectedDayEvents.length > 0 ? (
               <div className="relative pl-6 border-l-[1.5px] border-dashed border-rose-200 dark:border-rose-950/30 flex flex-col gap-4">
-                {selectedDayEvents.map((event) => (
-                  <div key={event.id} className="relative">
-                    {/* Timeline Node Icon (positioned absolutely on the left border) */}
-                    <div className="absolute left-[-33px] top-0.5 h-5 w-5 rounded-full bg-rose-gradient flex items-center justify-center text-white text-[9px] shadow-sm">
-                      {getEventIcon(event.title)}
+                {selectedDayEvents.map((event) => {
+                  const eventDate = new Date(event.date);
+                  const yearsDiff = year - eventDate.getFullYear();
+
+                  return (
+                    <div key={event.id} className="relative">
+                      {/* Timeline Node Icon (positioned absolutely on the left border) */}
+                      <div className="absolute left-[-33px] top-0.5 h-5 w-5 rounded-full bg-rose-gradient flex items-center justify-center text-white text-[9px] shadow-sm">
+                        {getEventIcon(event.title)}
+                      </div>
+                      {/* Timeline Card */}
+                      <div className="p-3 bg-white/40 dark:bg-slate-900/40 border border-rose-100/50 dark:border-rose-950/10 rounded-xl">
+                        <div className="flex items-center justify-between gap-2">
+                          <h4 className="font-bold text-xs text-slate-800 dark:text-rose-100 leading-tight">
+                            {event.title}
+                          </h4>
+                          {yearsDiff > 0 && (
+                            <span className="text-[9px] font-black text-rose-500 bg-rose-50 dark:bg-rose-950/30 px-1.5 py-0.5 rounded-full uppercase tracking-wider flex-shrink-0">
+                              {getYearPlural(yearsDiff)}
+                            </span>
+                          )}
+                        </div>
+                        {event.description && (
+                          <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 whitespace-pre-wrap leading-relaxed">
+                            {event.description}
+                          </p>
+                        )}
+                      </div>
                     </div>
-                    {/* Timeline Card */}
-                    <div className="p-3 bg-white/40 dark:bg-slate-900/40 border border-rose-100/50 dark:border-rose-950/10 rounded-xl">
-                      <h4 className="font-bold text-xs text-slate-800 dark:text-rose-100 leading-tight">
-                        {event.title}
-                      </h4>
-                      {event.description && (
-                        <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 whitespace-pre-wrap leading-relaxed">
-                          {event.description}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center py-4 text-center">

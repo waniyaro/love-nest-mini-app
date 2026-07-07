@@ -1,5 +1,6 @@
 import "dotenv/config";
 import { bot } from "./lib/bot";
+import { startScheduler } from "./lib/scheduler";
 
 console.log("🌸 Starting Telegram Bot in Long Polling mode...");
 
@@ -10,5 +11,6 @@ bot.catch((err) => {
 bot.start({
   onStart: (botInfo) => {
     console.log(`🤖 Bot @${botInfo.username} is running and listening for messages!`);
+    startScheduler();
   },
 });

@@ -27,15 +27,17 @@ export async function POST(req: Request) {
   }
 
   try {
-    const { title, url } = await req.json();
-    if (!title || !url) {
-      return Response.json({ error: "Title and URL are required" }, { status: 400 });
+    const { title, url, price, type } = await req.json();
+    if (!title) {
+      return Response.json({ error: "Title is required" }, { status: 400 });
     }
 
     const item = await prisma.wishlistItem.create({
       data: {
         title,
-        url,
+        url: url || null,
+        price: price || null,
+        type: type || "item",
         coupleId: authResult.couple.id,
         createdById: authResult.user.telegramId,
       },
@@ -43,10 +45,27 @@ export async function POST(req: Request) {
 
     // Notify partner
     if (authResult.partnerId) {
-      await sendTelegramNotification(
-        authResult.partnerId,
-        `🎁 <b>Новое желание в вишлисте!</b>\n\n<b>${authResult.user.firstName}</b> добавил(а) новый товар: <a href="${url}"><b>${title}</b></a>\n\n<i>Откройте IS TWO, чтобы посмотреть полный список желаний!</i> 🛍️`
-      );
+      let message = "";
+      if (type === "place") {
+        message = `📍 <b>Новое место!</b>\n\n<b>${authResult.user.firstName}</b> добавил(а) место <b>${title}</b> в список мест!`;
+        if (price) {
+          message += `\n💰 Бюджет: <b>${price}</b>`;
+        }
+        if (url) {
+          message += `\n🔗 <a href="${url}">Ссылка/Карта</a>`;
+        }
+      } else {
+        message = `🎁 <b>Новое желание!</b>\n\n<b>${authResult.user.firstName}</b> добавил(а) <b>${title}</b> в свой вишлист!`;
+        if (price) {
+          message += `\n💰 Цена: <b>${price}</b>`;
+        }
+        if (url) {
+          message += `\n🔗 <a href="${url}">Ссылка на товар</a>`;
+        }
+      }
+      message += `\n\n<i>Откройте IS TWO, чтобы посмотреть детали!</i> 🌸`;
+
+      await sendTelegramNotification(authResult.partnerId, message);
     }
 
     return Response.json({ item });
@@ -82,11 +101,20 @@ export async function PATCH(req: Request) {
       data: { isPurchased: !currentItem.isPurchased },
     });
 
-    // Notify partner if marked as purchased
+    // Notify partner if marked as purchased/visited
     if (authResult.partnerId && updatedItem.isPurchased) {
+      const isPlace = updatedItem.type === "place";
+      const itemTitle = updatedItem.url
+        ? `<a href="${updatedItem.url}"><b>${updatedItem.title}</b></a>`
+        : `<b>${updatedItem.title}</b>`;
+
+      const titleText = isPlace ? "Место посещено!" : "Желание исполнено!";
+      const actionText = isPlace ? "отметил(а) место как посещенное" : "отметил(а) ваше желание как исполненное";
+      const icon = isPlace ? "📍" : "💝";
+
       await sendTelegramNotification(
         authResult.partnerId,
-        `💝 <b>Желание исполнено!</b>\n\n<b>${authResult.user.firstName}</b> отметил(а) ваше желание как исполненное: <a href="${updatedItem.url}"><b>${updatedItem.title}</b></a>! 🎉`
+        `${icon} <b>${titleText}</b>\n\n<b>${authResult.user.firstName}</b> ${actionText}: ${itemTitle}! 🎉`
       );
     }
 

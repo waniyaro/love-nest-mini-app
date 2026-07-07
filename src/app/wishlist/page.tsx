@@ -4,25 +4,32 @@ export const dynamic = "force-dynamic";
 
 import { useTelegram } from "@/components/TelegramProvider";
 import { useEffect, useState, useCallback } from "react";
-import { Gift, Plus, ExternalLink, Heart, Trash2 } from "lucide-react";
+import { Gift, Plus, ExternalLink, Heart, Trash2, MapPin, Check, Sparkles } from "lucide-react";
 
 interface WishlistItem {
   id: string;
   title: string;
-  url: string;
+  url: string | null;
+  price: string | null;
+  type: string; // "item" or "place"
   isPurchased: boolean;
   createdById: string;
 }
 
 export default function WishlistPage() {
-  const { initData, user } = useTelegram();
+  const { initData, user, partner } = useTelegram();
   const [items, setItems] = useState<WishlistItem[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Navigation Tabs State
+  const [mainTab, setMainTab] = useState<"items" | "places">("items");
+  const [itemSubTab, setItemSubTab] = useState<"my" | "partner">("my");
 
   // Form State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [url, setUrl] = useState("");
+  const [price, setPrice] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   const loadWishlist = useCallback(async () => {
@@ -47,12 +54,12 @@ export default function WishlistPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title || !url) return;
+    if (!title) return;
 
     // Quick prefix for URL if missing http/https
-    let formattedUrl = url;
-    if (!/^https?:\/\//i.test(url)) {
-      formattedUrl = `https://${url}`;
+    let formattedUrl = url.trim();
+    if (formattedUrl && !/^https?:\/\//i.test(formattedUrl)) {
+      formattedUrl = `https://${formattedUrl}`;
     }
 
     setSubmitting(true);
@@ -64,8 +71,10 @@ export default function WishlistPage() {
           Authorization: `Bearer ${initData}`,
         },
         body: JSON.stringify({
-          title,
-          url: formattedUrl,
+          title: title.trim(),
+          url: formattedUrl || undefined,
+          price: price.trim() || undefined,
+          type: mainTab === "items" ? "item" : "place",
         }),
       });
 
@@ -74,6 +83,7 @@ export default function WishlistPage() {
         setIsModalOpen(false);
         setTitle("");
         setUrl("");
+        setPrice("");
         
         // Haptic feedback
         if (typeof window !== "undefined" && window.Telegram?.WebApp?.HapticFeedback) {
@@ -136,7 +146,8 @@ export default function WishlistPage() {
   };
 
   // Extract hostname for cleaner URL displays
-  const getDomain = (urlStr: string) => {
+  const getDomain = (urlStr: string | null) => {
+    if (!urlStr) return "";
     try {
       const parsed = new URL(urlStr);
       return parsed.hostname.replace("www.", "");
@@ -145,7 +156,7 @@ export default function WishlistPage() {
     }
   };
 
-  // Custom styling for popular Russian marketplaces
+  // Custom styling for popular marketplaces
   const getDomainStyle = (domain: string) => {
     if (domain.includes("wildberries") || domain.includes("wb.")) {
       return "bg-purple-100 text-purple-600 dark:bg-purple-950/40 dark:text-purple-300";
@@ -162,12 +173,27 @@ export default function WishlistPage() {
     return "bg-rose-100 text-rose-600 dark:bg-rose-950/40 dark:text-rose-300";
   };
 
+  // Filter lists based on type and tabs
+  const itemsList = items.filter((item) => item.type === "place" ? false : true); // default is item
+  const myItemsList = itemsList.filter((item) => item.createdById === user?.telegramId);
+  const partnerItemsList = itemsList.filter((item) => item.createdById !== user?.telegramId);
+
+  const placesList = items.filter((item) => item.type === "place");
+
+  // Determine current displayed list
+  let displayedItems: WishlistItem[] = [];
+  if (mainTab === "items") {
+    displayedItems = itemSubTab === "my" ? myItemsList : partnerItemsList;
+  } else {
+    displayedItems = placesList;
+  }
+
   return (
     <div className="flex flex-col gap-5 pb-6">
       {/* Page Header */}
       <div className="flex items-center justify-between mt-4">
         <h1 className="text-xl font-bold tracking-tight text-slate-800 dark:text-rose-100 flex items-center gap-1.5">
-          Вишлист <span className="text-rose-500">🎁</span>
+          {mainTab === "items" ? "Вишлист" : "Места"} <span className="text-rose-500">{mainTab === "items" ? "🎁" : "📍"}</span>
         </h1>
         <button
           onClick={() => setIsModalOpen(true)}
@@ -178,24 +204,92 @@ export default function WishlistPage() {
         </button>
       </div>
 
-      {/* Wishlist Items List */}
+      {/* Main Tab Switcher: Items vs Places */}
+      <div className="flex bg-slate-100 dark:bg-slate-900/60 p-1 rounded-2xl relative">
+        <button
+          onClick={() => setMainTab("items")}
+          className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all duration-300 relative z-10 ${
+            mainTab === "items" ? "text-rose-500" : "text-slate-500 dark:text-slate-400"
+          }`}
+        >
+          🎁 Вещи ({itemsList.length})
+        </button>
+        <button
+          onClick={() => setMainTab("places")}
+          className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all duration-300 relative z-10 ${
+            mainTab === "places" ? "text-rose-500" : "text-slate-500 dark:text-slate-400"
+          }`}
+        >
+          📍 Места ({placesList.length})
+        </button>
+        <div
+          className={`absolute top-1 bottom-1 w-[calc(50%-4px)] bg-white dark:bg-slate-800 rounded-xl shadow-sm transition-all duration-300 ease-out ${
+            mainTab === "items" ? "left-1" : "left-[calc(50%+1px)]"
+          }`}
+        ></div>
+      </div>
+
+      {/* Sub-tabs for Items: My List vs Partner's List */}
+      {mainTab === "items" && (
+        <div className="flex bg-rose-50/40 dark:bg-rose-950/5 border border-rose-100/40 dark:border-rose-950/10 p-1 rounded-xl relative">
+          <button
+            onClick={() => setItemSubTab("my")}
+            className={`flex-1 py-1.5 text-[11px] font-bold rounded-lg transition-all duration-300 relative z-10 ${
+              itemSubTab === "my" ? "text-rose-500" : "text-slate-500 dark:text-slate-400"
+            }`}
+          >
+            Мой вишлист ({myItemsList.length})
+          </button>
+          <button
+            onClick={() => setItemSubTab("partner")}
+            className={`flex-1 py-1.5 text-[11px] font-bold rounded-lg transition-all duration-300 relative z-10 ${
+              itemSubTab === "partner" ? "text-rose-500" : "text-slate-500 dark:text-slate-400"
+            }`}
+          >
+            Список {partner?.firstName || "партнера"} ({partnerItemsList.length})
+          </button>
+          <div
+            className={`absolute top-1 bottom-1 w-[calc(50%-4px)] bg-white dark:bg-slate-900 rounded-lg shadow-sm transition-all duration-300 ease-out ${
+              itemSubTab === "my" ? "left-1" : "left-[calc(50%+1px)]"
+            }`}
+          ></div>
+        </div>
+      )}
+
+      {/* Wishlist Items / Places List */}
       {loading ? (
         <div className="flex flex-col items-center justify-center py-12">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-rose-500"></div>
         </div>
-      ) : items.length > 0 ? (
+      ) : mainTab === "items" && itemSubTab === "partner" && !partner ? (
+        // Partner not connected empty state
+        <div className="glass-card rounded-3xl p-8 flex flex-col items-center justify-center text-center">
+          <div className="h-14 w-14 rounded-full bg-indigo-50 dark:bg-indigo-950/20 flex items-center justify-center text-indigo-500 mb-4 animate-pulse">
+            <Sparkles className="h-7 w-7" />
+          </div>
+          <h3 className="font-bold text-slate-700 dark:text-rose-100 text-sm">
+            Партнер еще не присоединился
+          </h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-[220px]">
+            Поделитесь ссылкой-приглашением из профиля, чтобы объединить ваши аккаунты!
+          </p>
+        </div>
+      ) : displayedItems.length > 0 ? (
         <div className="flex flex-col gap-4">
-          {items.map((item) => {
+          {displayedItems.map((item) => {
             const domain = getDomain(item.url);
+            const isCreatorMe = item.createdById === user?.telegramId;
+            const cardBg = item.isPurchased 
+              ? "opacity-55 scale-[0.98] bg-slate-50/10 dark:bg-slate-900/10" 
+              : "hover:scale-[1.01]";
+
             return (
               <div
                 key={item.id}
-                className={`glass-card rounded-2xl p-4.5 flex items-center justify-between transition-all duration-300 ${
-                  item.isPurchased ? "opacity-55 scale-[0.98] bg-slate-50/10 dark:bg-slate-900/10" : "hover:scale-[1.01]"
-                }`}
+                className={`glass-card rounded-2xl p-4.5 flex items-center justify-between transition-all duration-300 ${cardBg}`}
               >
                 <div className="flex items-center gap-4 min-w-0 flex-1">
-                  {/* Custom heart toggle button */}
+                  {/* Action/Purchase Heart or Check Toggle */}
                   <button
                     onClick={() => handleTogglePurchased(item.id)}
                     className={`h-9 w-9 rounded-xl flex items-center justify-center border transition-all flex-shrink-0 active:scale-90 ${
@@ -204,58 +298,86 @@ export default function WishlistPage() {
                         : "border-rose-200 dark:border-rose-950/60 hover:border-rose-400 text-rose-400"
                     }`}
                   >
-                    <Heart className={`h-4.5 w-4.5 ${item.isPurchased ? "fill-white stroke-none" : "stroke-[2.5px]"}`} />
+                    {mainTab === "items" ? (
+                      <Heart className={`h-4.5 w-4.5 ${item.isPurchased ? "fill-white stroke-none" : "stroke-[2.5px]"}`} />
+                    ) : (
+                      <Check className={`h-4.5 w-4.5 stroke-[3px] ${item.isPurchased ? "text-white" : "text-rose-400"}`} />
+                    )}
                   </button>
 
                   <div className="min-w-0 flex-1">
-                    <h3
-                      className={`font-extrabold text-xs text-slate-800 dark:text-rose-100 truncate ${
-                        item.isPurchased ? "line-through text-slate-400 dark:text-slate-500" : ""
-                      }`}
-                    >
-                      {item.title}
-                    </h3>
-                    
-                    <a
-                      href={item.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className={`inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full mt-1.5 transition-opacity hover:opacity-90 ${getDomainStyle(domain)}`}
-                    >
-                      <ExternalLink className="h-2.5 w-2.5" />
-                      <span>{domain}</span>
-                    </a>
+                    <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                      <h3
+                        className={`font-extrabold text-xs text-slate-800 dark:text-rose-100 truncate ${
+                          item.isPurchased ? "line-through text-slate-400 dark:text-slate-500" : ""
+                        }`}
+                      >
+                        {item.title}
+                      </h3>
+                      {item.price && (
+                        <span className="text-[10px] font-extrabold text-rose-500 bg-rose-50 dark:bg-rose-950/30 px-1.5 py-0.5 rounded-md flex-shrink-0">
+                          {item.price}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Metadata: Links & Creator info */}
+                    <div className="flex flex-wrap items-center gap-2 mt-2">
+                      {item.url && (
+                        <a
+                          href={item.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={`inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full transition-opacity hover:opacity-90 ${getDomainStyle(domain)}`}
+                        >
+                          <ExternalLink className="h-2.5 w-2.5" />
+                          <span>{domain}</span>
+                        </a>
+                      )}
+                      {mainTab === "places" && (
+                        <span className="text-[8px] font-extrabold text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-900 px-1.5 py-0.5 rounded-md">
+                          Добавил(а): {isCreatorMe ? "Вы" : (partner?.firstName || "Партнер")}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
 
-                {/* Delete button */}
-                <div className="flex items-center gap-2 ml-4">
-                  <button
-                    onClick={() => handleDelete(item.id)}
-                    className="h-9 w-9 rounded-xl bg-slate-100/80 hover:bg-rose-100 text-slate-400 hover:text-rose-500 dark:bg-slate-900 dark:hover:bg-rose-950/40 dark:text-slate-500 transition-all flex items-center justify-center active:scale-95"
-                  >
-                    <Trash2 className="h-4.5 w-4.5" />
-                  </button>
-                </div>
+                {/* Delete button (Only for creators) */}
+                {isCreatorMe && (
+                  <div className="flex items-center gap-2 ml-4">
+                    <button
+                      onClick={() => handleDelete(item.id)}
+                      className="h-9 w-9 rounded-xl bg-slate-100/80 hover:bg-rose-100 text-slate-400 hover:text-rose-500 dark:bg-slate-900 dark:hover:bg-rose-950/40 dark:text-slate-500 transition-all flex items-center justify-center active:scale-95"
+                    >
+                      <Trash2 className="h-4.5 w-4.5" />
+                    </button>
+                  </div>
+                )}
               </div>
             );
           })}
         </div>
       ) : (
+        // Empty State
         <div className="glass-card rounded-3xl p-8 flex flex-col items-center justify-center text-center">
           <div className="h-14 w-14 rounded-full bg-rose-50 dark:bg-rose-950/20 flex items-center justify-center text-rose-500 mb-4 animate-float">
-            <Gift className="h-7 w-7" />
+            {mainTab === "items" ? <Gift className="h-7 w-7" /> : <MapPin className="h-7 w-7" />}
           </div>
           <h3 className="font-bold text-slate-700 dark:text-rose-100 text-sm">
-            Ваш вишлист пока пуст
+            {mainTab === "items" 
+              ? (itemSubTab === "my" ? "Ваш вишлист пока пуст" : `Вишлист ${partner?.firstName || "партнера"} пуст`)
+              : "Список мест пока пуст"}
           </h3>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-[200px]">
-            Добавляйте ссылки на подарки и сюрпризы, о которых мечтаете!
+            {mainTab === "items"
+              ? (itemSubTab === "my" ? "Добавьте вещи и сюрпризы, о которых вы мечтаете!" : "Партнер еще не добавил сюда свои желания.")
+              : "Добавьте места, куда вы хотели бы сходить вместе!"}
           </p>
         </div>
       )}
 
-      {/* Add Item Modal */}
+      {/* Add Item / Place Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-fade-in">
           <form
@@ -264,37 +386,56 @@ export default function WishlistPage() {
           >
             <div>
               <h3 className="text-lg font-bold text-slate-800 dark:text-rose-100 flex items-center gap-1.5">
-                Новое желание <Gift className="h-5 w-5 text-rose-500" />
+                {mainTab === "items" ? "Новое желание" : "Новое место"}{" "}
+                {mainTab === "items" ? (
+                  <Gift className="h-5 w-5 text-rose-500" />
+                ) : (
+                  <MapPin className="h-5 w-5 text-rose-500" />
+                )}
               </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                Добавьте товар в вишлист, и мы сразу сообщим вашему партнеру!
+                {mainTab === "items"
+                  ? "Добавьте товар в вишлист, и мы сразу сообщим вашему партнеру!"
+                  : "Добавьте место для свиданий, куда бы вы хотели сходить!"}
               </p>
             </div>
 
             <div className="flex flex-col gap-1">
               <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                Название желания
+                Название {mainTab === "items" ? "желания" : "места"}
               </label>
               <input
                 type="text"
                 required
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="Что за подарок (например, Парные кулоны)"
+                placeholder={mainTab === "items" ? "Парные кулоны, плед..." : "Ресторан с панорамным видом, каток..."}
                 className="h-11 px-4 rounded-xl border border-rose-200 dark:border-rose-950/50 bg-white/50 dark:bg-slate-900/50 text-slate-800 dark:text-rose-100 text-xs outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400 transition-all"
               />
             </div>
 
             <div className="flex flex-col gap-1">
               <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                Ссылка на товар
+                {mainTab === "items" ? "Примерная цена (необязательно)" : "Примерный бюджет (необязательно)"}
               </label>
               <input
                 type="text"
-                required
+                value={price}
+                onChange={(e) => setPrice(e.target.value)}
+                placeholder={mainTab === "items" ? "1500 ₽, $20..." : "3000 ₽, бесплатно..."}
+                className="h-11 px-4 rounded-xl border border-rose-200 dark:border-rose-950/50 bg-white/50 dark:bg-slate-900/50 text-slate-800 dark:text-rose-100 text-xs outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400 transition-all"
+              />
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                {mainTab === "items" ? "Ссылка на товар (необязательно)" : "Ссылка на карту / информацию (необязательно)"}
+              </label>
+              <input
+                type="text"
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
-                placeholder="https://wildberries.ru/catalog/..."
+                placeholder={mainTab === "items" ? "https://wildberries.ru/..." : "https://yandex.ru/maps/..."}
                 className="h-11 px-4 rounded-xl border border-rose-200 dark:border-rose-950/50 bg-white/50 dark:bg-slate-900/50 text-slate-800 dark:text-rose-100 text-xs outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400 transition-all"
               />
             </div>
@@ -302,7 +443,12 @@ export default function WishlistPage() {
             <div className="flex gap-3 mt-4">
               <button
                 type="button"
-                onClick={() => setIsModalOpen(false)}
+                onClick={() => {
+                  setIsModalOpen(false);
+                  setTitle("");
+                  setUrl("");
+                  setPrice("");
+                }}
                 className="flex-1 h-11 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-900 dark:hover:bg-slate-800 dark:text-slate-300 text-xs font-bold transition-all"
               >
                 Отмена

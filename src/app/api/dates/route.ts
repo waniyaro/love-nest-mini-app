@@ -45,17 +45,20 @@ export async function POST(req: Request) {
 
     // Notify partner via Bot
     if (authResult.partnerId) {
-      const formattedDateTime = new Date(dateTime).toLocaleString("ru-RU", {
+      const dateObj = new Date(dateTime);
+      const formattedDate = dateObj.toLocaleDateString("ru-RU", {
         year: "numeric",
         month: "long",
         day: "numeric",
+      });
+      const formattedTime = dateObj.toLocaleTimeString("ru-RU", {
         hour: "2-digit",
         minute: "2-digit",
       });
-      const locationText = location ? ` в <b>${location}</b>` : "";
+      const locationText = location ? location : "Не указано";
       await sendTelegramNotification(
         authResult.partnerId,
-        `💖 <b>Новое приглашение на свидание!</b>\n\n<b>${authResult.user.firstName}</b> приглашает вас на свидание: <b>"${title}"</b>\n📅 Дата и время: <b>${formattedDateTime}</b>${locationText}\n\n<i>Откройте IS TWO, чтобы посмотреть детали!</i> ✨`
+        `💖 <b>Приглашение на свидание!</b>\n\n<b>${authResult.user.firstName}</b> назначил(а) вам свидание:\n🏷️ Название: <b>"${title}"</b>\n📅 Дата: <b>${formattedDate}</b>\n⏰ Время: <b>${formattedTime}</b>\n📍 Место: <b>${locationText}</b>\n\n<i>Откройте IS TWO, чтобы посмотреть детали!</i> ✨`
       );
     }
 
