@@ -145,8 +145,11 @@ export async function authenticateTelegramUser(authHeader: string | null, startP
           include: { users: true },
         });
 
-        // Join only if couple exists and has less than 2 users
-        if (existingCouple && existingCouple.users.length < 2) {
+        if (existingCouple) {
+          // If the couple already has 2 or more users, reject
+          if (existingCouple.users.length >= 2) {
+            return { error: "Мы такое не приветствуем 😠", status: 400 };
+          }
           coupleToJoin = existingCouple;
         }
       } catch (e) {
@@ -197,14 +200,15 @@ export async function authenticateTelegramUser(authHeader: string | null, startP
             include: { users: true },
           });
 
-          // Join only if target couple exists and has less than 2 users
-          if (targetCouple && targetCouple.users.length < 2) {
-            // Check if current couple has only 1 user (the current user themselves)
-            const currentCoupleUsersCount = dbUser.couple.users.length;
-            if (currentCoupleUsersCount <= 1) {
-              newCoupleId = targetCoupleId;
-              oldCoupleIdToDelete = dbUser.coupleId;
+          if (targetCouple) {
+            // If they are already in a relationship with someone else, or the target couple already has 2 people
+            if (dbUser.couple.users.length >= 2 || targetCouple.users.length >= 2) {
+              return { error: "Мы такое не приветствуем 😠", status: 400 };
             }
+
+            // Both couples have only 1 user, we can merge them
+            newCoupleId = targetCoupleId;
+            oldCoupleIdToDelete = dbUser.coupleId;
           }
         } catch (e) {
           console.error("Error updating user's couple from startParam:", e);

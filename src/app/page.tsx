@@ -4,7 +4,7 @@ export const dynamic = "force-dynamic";
 
 import { useTelegram } from "@/components/TelegramProvider";
 import { useState } from "react";
-import { Heart, Calendar, Share2, Edit2, Check } from "lucide-react";
+import { Heart, Calendar, Share2, Edit2, Check, Settings, HeartOff } from "lucide-react";
 
 const quotes = [
   "С тобой каждый день — праздник 🌸",
@@ -24,6 +24,36 @@ export default function Dashboard() {
   );
   const [copied, setCopied] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isBreakingUp, setIsBreakingUp] = useState(false);
+
+  const handleBreakup = async () => {
+    const confirmed = window.confirm("Вы уверены, что хотите разорвать пару? Это сотрет общую историю и свидания!");
+    if (!confirmed) return;
+
+    setIsBreakingUp(true);
+    try {
+      const res = await fetch("/api/couple/breakup", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${initData}`,
+        },
+      });
+
+      if (res.ok) {
+        setIsSettingsOpen(false);
+        await refetch();
+      } else {
+        console.error("Failed to break up couple:", await res.text());
+        alert("Не удалось разорвать пару. Попробуйте еще раз.");
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Сетевая ошибка при разрыве пары.");
+    } finally {
+      setIsBreakingUp(false);
+    }
+  };
 
   // Calculate days together
   const getDaysTogether = () => {
@@ -98,10 +128,17 @@ export default function Dashboard() {
   return (
     <div className="flex flex-col gap-6 pb-6 animate-float-slow">
       {/* Header Profile Section */}
-      <div className="flex items-center justify-center mt-4">
+      <div className="flex items-center justify-between mt-4 px-2">
+        <div className="w-9"></div> {/* Spacer to center the title */}
         <h1 className="text-3xl font-black tracking-tight text-slate-800 dark:text-rose-100 flex items-center gap-2">
           IS TWO <span className="animate-pulse-heart">🌸</span>
         </h1>
+        <button
+          onClick={() => setIsSettingsOpen(true)}
+          className="h-9 w-9 rounded-2xl bg-white/60 hover:bg-white/80 dark:bg-slate-900/60 dark:hover:bg-slate-900/80 flex items-center justify-center text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-all shadow-sm border border-rose-100/30 dark:border-rose-950/20"
+        >
+          <Settings className="h-4.5 w-4.5" />
+        </button>
       </div>
 
       {/* Avatars / Couple Matching */}
@@ -314,6 +351,61 @@ export default function Dashboard() {
                 {saving ? "Сохраняем..." : "Сохранить"}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Settings Modal */}
+      {isSettingsOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="glass-card rounded-3xl w-full max-w-sm p-6 shadow-2xl animate-float">
+            <h3 className="text-lg font-bold text-slate-800 dark:text-rose-100 mb-2 flex items-center gap-1.5">
+              Настройки отношений ⚙️
+            </h3>
+            
+            <div className="my-6 flex flex-col items-center justify-center p-4 bg-slate-50/50 dark:bg-slate-900/30 rounded-2xl border border-rose-100/30 dark:border-rose-950/10 text-center">
+              {partner ? (
+                <>
+                  <div className="h-14 w-14 rounded-full bg-rose-100 dark:bg-rose-950/30 flex items-center justify-center text-rose-500 mb-3 animate-pulse-heart">
+                    <Heart className="h-7 w-7 fill-rose-500 stroke-none" />
+                  </div>
+                  <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                    Вы состоите в паре с <span className="text-rose-500">{partner.firstName}</span>.
+                  </p>
+                  <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1 max-w-[220px]">
+                    Разорвав пару, вы перестанете видеть общий календарь, свидания и списки желаний.
+                  </p>
+                  
+                  <button
+                    onClick={handleBreakup}
+                    disabled={isBreakingUp}
+                    className="mt-6 flex items-center justify-center gap-2 w-full h-11 rounded-xl bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white text-xs font-bold shadow-md shadow-red-200 dark:shadow-none transition-all"
+                  >
+                    <HeartOff className="h-4 w-4" />
+                    {isBreakingUp ? "Разрываем связь..." : "Разорвать пару"}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <div className="h-14 w-14 rounded-full bg-slate-100 dark:bg-slate-900 flex items-center justify-center text-slate-400 mb-3">
+                    🤍
+                  </div>
+                  <p className="text-sm font-semibold text-slate-600 dark:text-slate-400">
+                    Вы пока не состоите в паре
+                  </p>
+                  <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1 max-w-[200px]">
+                    Отправьте пригласительную ссылку вашей второй половинке, чтобы соединить ваши сердца!
+                  </p>
+                </>
+              )}
+            </div>
+            
+            <button
+              onClick={() => setIsSettingsOpen(false)}
+              className="w-full h-11 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-900 dark:hover:bg-slate-800 dark:text-slate-300 text-xs font-bold transition-all"
+            >
+              Закрыть
+            </button>
           </div>
         </div>
       )}
