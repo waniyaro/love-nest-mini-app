@@ -3,20 +3,25 @@ import { prisma } from "@/lib/prisma";
 import { sendTelegramNotification } from "@/lib/bot";
 
 export async function GET(req: Request) {
-  const { searchParams } = new URL(req.url);
-  const startParam = searchParams.get("startParam");
+  try {
+    const { searchParams } = new URL(req.url);
+    const startParam = searchParams.get("startParam");
 
-  const authResult = await authenticateTelegramUser(req.headers.get("authorization"), startParam);
-  if ("error" in authResult) {
-    return Response.json({ error: authResult.error }, { status: authResult.status });
+    const authResult = await authenticateTelegramUser(req.headers.get("authorization"), startParam);
+    if ("error" in authResult) {
+      return Response.json({ error: authResult.error }, { status: authResult.status });
+    }
+
+    return Response.json({
+      user: authResult.user,
+      partner: authResult.partner,
+      couple: authResult.couple,
+      botUsername: process.env.NEXT_PUBLIC_BOT_USERNAME || "IStwo_bot",
+    });
+  } catch (error: any) {
+    console.error("Error in GET /api/couple:", error);
+    return Response.json({ error: error.message || "Internal Server Error" }, { status: 500 });
   }
-
-  return Response.json({
-    user: authResult.user,
-    partner: authResult.partner,
-    couple: authResult.couple,
-    botUsername: process.env.NEXT_PUBLIC_BOT_USERNAME || "IStwo_bot",
-  });
 }
 
 export async function POST(req: Request) {

@@ -32,6 +32,7 @@ export function TelegramProvider({ children }: { children: React.ReactNode }) {
   const [couple, setCouple] = useState<Couple | null>(null);
   const [loading, setLoading] = useState(true);
   const [initData, setInitData] = useState("");
+  const [error, setError] = useState<string | null>(null);
 
   const [botUsername, setBotUsername] = useState(process.env.NEXT_PUBLIC_BOT_USERNAME || "love_nest_bot");
 
@@ -67,11 +68,16 @@ export function TelegramProvider({ children }: { children: React.ReactNode }) {
         if (data.botUsername) {
           setBotUsername(data.botUsername);
         }
+        setError(null);
       } else {
-        console.error("Failed to load couple data", await response.text());
+        const data = await response.json().catch(() => ({}));
+        const errMsg = data.error || response.statusText || "Unknown error";
+        console.error("Failed to load couple data:", errMsg);
+        setError(`Ошибка сервера: ${errMsg} (Status: ${response.status})`);
       }
-    } catch (error) {
-      console.error("Error loading couple data:", error);
+    } catch (err: any) {
+      console.error("Error loading couple data:", err);
+      setError(`Сетевая ошибка: ${err.message || err}`);
     } finally {
       setLoading(false);
     }
@@ -128,7 +134,25 @@ export function TelegramProvider({ children }: { children: React.ReactNode }) {
         botUsername,
       }}
     >
-      {loading ? (
+      {error ? (
+        <div className="flex h-screen w-screen flex-col items-center justify-center bg-rose-50/30 dark:bg-slate-950 p-6 text-center">
+          <div className="text-6xl mb-4">⚠️</div>
+          <h2 className="text-lg font-bold text-rose-600 dark:text-rose-400 mb-2">Ошибка подключения</h2>
+          <p className="text-xs text-slate-600 dark:text-slate-400 max-w-xs mb-6 font-mono break-words bg-rose-50 dark:bg-slate-900 p-3 rounded-xl border border-rose-100 dark:border-rose-950">
+            {error}
+          </p>
+          <button
+            onClick={() => {
+              setError(null);
+              setLoading(true);
+              refetch();
+            }}
+            className="px-6 py-2.5 rounded-full bg-rose-gradient text-white text-xs font-bold shadow-md hover:opacity-95 transition-all"
+          >
+            Попробовать снова
+          </button>
+        </div>
+      ) : loading ? (
         <div className="flex h-screen w-screen flex-col items-center justify-center bg-rose-50/30 dark:bg-slate-950">
           <div className="animate-pulse-heart text-6xl text-rose-500">💖</div>
           <p className="mt-4 font-sans text-sm font-medium text-rose-400 dark:text-rose-300">
