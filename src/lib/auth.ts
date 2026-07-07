@@ -169,7 +169,7 @@ export async function authenticateTelegramUser(authHeader: string | null, startP
         telegramId: userIdStr,
         firstName: tgUser.first_name,
         username: tgUser.username || null,
-        photoUrl: `/api/user/photo?telegramId=${userIdStr}`,
+        photoUrl: tgUser.photo_url || `/api/user/photo?telegramId=${userIdStr}`,
         coupleId: coupleToJoin.id,
       },
       include: {
@@ -217,7 +217,7 @@ export async function authenticateTelegramUser(authHeader: string | null, startP
       data: {
         firstName: tgUser.first_name,
         username: tgUser.username || null,
-        photoUrl: `/api/user/photo?telegramId=${userIdStr}`,
+        photoUrl: tgUser.photo_url || `/api/user/photo?telegramId=${userIdStr}`,
         coupleId: newCoupleId,
       },
       include: {

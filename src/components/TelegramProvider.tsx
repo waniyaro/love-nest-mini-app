@@ -2,6 +2,13 @@
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 
+// Capture tgWebAppStartParam synchronously at module load time before Next.js Router strips it
+let initialStartParam: string | null = null;
+if (typeof window !== "undefined") {
+  const urlParams = new URLSearchParams(window.location.search);
+  initialStartParam = urlParams.get("tgWebAppStartParam") || urlParams.get("startParam");
+}
+
 interface Couple {
   id: string;
   startDate: string | null;
@@ -34,7 +41,7 @@ export function TelegramProvider({ children }: { children: React.ReactNode }) {
   const [initData, setInitData] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  const [botUsername, setBotUsername] = useState(process.env.NEXT_PUBLIC_BOT_USERNAME || "love_nest_bot");
+  const [botUsername, setBotUsername] = useState(process.env.NEXT_PUBLIC_BOT_USERNAME || "IStwo_bot");
 
   const fetchCoupleData = useCallback(async (dataStr: string) => {
     try {
@@ -42,12 +49,7 @@ export function TelegramProvider({ children }: { children: React.ReactNode }) {
       let startParam = null;
       if (typeof window !== "undefined") {
         const tg = window.Telegram?.WebApp;
-        if (tg?.initDataUnsafe?.start_param) {
-          startParam = tg.initDataUnsafe.start_param;
-        } else {
-          const urlParams = new URLSearchParams(window.location.search);
-          startParam = urlParams.get("tgWebAppStartParam");
-        }
+        startParam = tg?.initDataUnsafe?.start_param || initialStartParam;
       }
 
       const url = startParam
