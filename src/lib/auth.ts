@@ -1,5 +1,6 @@
 import crypto from "crypto";
 import { prisma } from "./prisma";
+import { bot } from "./bot";
 
 export interface TelegramUser {
   id: number;
@@ -50,7 +51,7 @@ export function verifyTelegramWebAppData(initData: string, botToken: string): bo
  * Authenticates user from Telegram Authorization header.
  * Supports mock authentication in development.
  */
-export async function authenticateTelegramUser(authHeader: string | null) {
+export async function authenticateTelegramUser(authHeader: string | null, startParamFromUrl?: string | null) {
   if (!authHeader) {
     return { error: "Authorization header is missing", status: 401 };
   }
@@ -100,17 +101,19 @@ export async function authenticateTelegramUser(authHeader: string | null) {
 
   const userIdStr = String(tgUser.id);
 
-  // Extract start_param from token if present (both in mock and real Telegram)
+  // Extract start_param from token if present, fallback to startParamFromUrl
   let startParam: string | null = null;
   if (token.startsWith("mock_") || !isNaN(Number(token))) {
     if (token.includes("?")) {
       const urlParams = new URLSearchParams(token.substring(token.indexOf("?")));
-      startParam = urlParams.get("start_param");
+      startParam = urlParams.get("start_param") || startParamFromUrl || null;
+    } else {
+      startParam = startParamFromUrl || null;
     }
   } else {
     try {
       const params = new URLSearchParams(token);
-      startParam = params.get("start_param");
+      startParam = params.get("start_param") || startParamFromUrl || null;
     } catch (e) {
       console.error("Error parsing startParam:", e);
     }
@@ -166,7 +169,7 @@ export async function authenticateTelegramUser(authHeader: string | null) {
         telegramId: userIdStr,
         firstName: tgUser.first_name,
         username: tgUser.username || null,
-        photoUrl: tgUser.photo_url || null,
+        photoUrl: `/api/user/photo?telegramId=${userIdStr}`,
         coupleId: coupleToJoin.id,
       },
       include: {
@@ -180,12 +183,42 @@ export async function authenticateTelegramUser(authHeader: string | null) {
     couple = dbUser.couple;
   } else {
     // User already exists, keep their profile info up-to-date
+    let newCoupleId = dbUser.coupleId;
+    let oldCoupleIdToDelete = null;
+
+    if (startParam && startParam.startsWith("couple_")) {
+      const targetCoupleId = startParam.substring(7);
+      
+      // Only allow joining if they are currently alone and the target couple is different
+      if (dbUser.coupleId !== targetCoupleId) {
+        try {
+          const targetCouple = await prisma.couple.findUnique({
+            where: { id: targetCoupleId },
+            include: { users: true },
+          });
+
+          // Join only if target couple exists and has less than 2 users
+          if (targetCouple && targetCouple.users.length < 2) {
+            // Check if current couple has only 1 user (the current user themselves)
+            const currentCoupleUsersCount = dbUser.couple.users.length;
+            if (currentCoupleUsersCount <= 1) {
+              newCoupleId = targetCoupleId;
+              oldCoupleIdToDelete = dbUser.coupleId;
+            }
+          }
+        } catch (e) {
+          console.error("Error updating user's couple from startParam:", e);
+        }
+      }
+    }
+
     dbUser = await prisma.user.update({
       where: { telegramId: userIdStr },
       data: {
         firstName: tgUser.first_name,
         username: tgUser.username || null,
-        photoUrl: tgUser.photo_url || null,
+        photoUrl: `/api/user/photo?telegramId=${userIdStr}`,
+        coupleId: newCoupleId,
       },
       include: {
         couple: {
@@ -196,6 +229,18 @@ export async function authenticateTelegramUser(authHeader: string | null) {
       },
     });
     couple = dbUser.couple;
+
+    // Clean up the old couple if it's now empty
+    if (oldCoupleIdToDelete && oldCoupleIdToDelete !== newCoupleId) {
+      try {
+        await prisma.couple.delete({
+          where: { id: oldCoupleIdToDelete },
+        });
+        console.log(`Deleted empty old couple: ${oldCoupleIdToDelete}`);
+      } catch (e) {
+        console.error(`Failed to delete empty old couple ${oldCoupleIdToDelete}:`, e);
+      }
+    }
   }
 
   // Find partner (the other user in the couple)

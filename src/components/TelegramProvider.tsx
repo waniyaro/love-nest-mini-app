@@ -33,11 +33,27 @@ export function TelegramProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [initData, setInitData] = useState("");
 
-  const botUsername = process.env.NEXT_PUBLIC_BOT_USERNAME || "love_nest_bot";
+  const [botUsername, setBotUsername] = useState(process.env.NEXT_PUBLIC_BOT_USERNAME || "love_nest_bot");
 
   const fetchCoupleData = useCallback(async (dataStr: string) => {
     try {
-      const response = await fetch("/api/couple", {
+      // Retrieve startParam from Telegram WebApp or URL search param
+      let startParam = null;
+      if (typeof window !== "undefined") {
+        const tg = window.Telegram?.WebApp;
+        if (tg?.initDataUnsafe?.start_param) {
+          startParam = tg.initDataUnsafe.start_param;
+        } else {
+          const urlParams = new URLSearchParams(window.location.search);
+          startParam = urlParams.get("tgWebAppStartParam");
+        }
+      }
+
+      const url = startParam
+        ? `/api/couple?startParam=${encodeURIComponent(startParam)}`
+        : "/api/couple";
+
+      const response = await fetch(url, {
         headers: {
           Authorization: `Bearer ${dataStr}`,
         },
@@ -48,6 +64,9 @@ export function TelegramProvider({ children }: { children: React.ReactNode }) {
         setUser(data.user);
         setPartner(data.partner);
         setCouple(data.couple);
+        if (data.botUsername) {
+          setBotUsername(data.botUsername);
+        }
       } else {
         console.error("Failed to load couple data", await response.text());
       }

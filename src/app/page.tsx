@@ -70,7 +70,7 @@ export default function Dashboard() {
 
   const handleShare = () => {
     const inviteLink = couple?.id
-      ? `https://t.me/${botUsername}/app?startapp=couple_${couple.id}`
+      ? `https://t.me/${botUsername}?start=couple_${couple.id}`
       : `https://t.me/${botUsername}`;
     navigator.clipboard.writeText(inviteLink);
     setCopied(true);

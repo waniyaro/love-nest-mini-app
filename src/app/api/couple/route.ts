@@ -3,7 +3,10 @@ import { prisma } from "@/lib/prisma";
 import { sendTelegramNotification } from "@/lib/bot";
 
 export async function GET(req: Request) {
-  const authResult = await authenticateTelegramUser(req.headers.get("authorization"));
+  const { searchParams } = new URL(req.url);
+  const startParam = searchParams.get("startParam");
+
+  const authResult = await authenticateTelegramUser(req.headers.get("authorization"), startParam);
   if ("error" in authResult) {
     return Response.json({ error: authResult.error }, { status: authResult.status });
   }
@@ -12,6 +15,7 @@ export async function GET(req: Request) {
     user: authResult.user,
     partner: authResult.partner,
     couple: authResult.couple,
+    botUsername: process.env.NEXT_PUBLIC_BOT_USERNAME || "IStwo_bot",
   });
 }
 
