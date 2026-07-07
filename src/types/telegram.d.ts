@@ -63,6 +63,7 @@ interface TelegramWebApp {
     notificationOccurred: (type: "error" | "success" | "warning") => void;
     selectionChanged: () => void;
   };
+  openTelegramLink?: (url: string) => void;
   ready: () => void;
   expand: () => void;
   close: () => void;

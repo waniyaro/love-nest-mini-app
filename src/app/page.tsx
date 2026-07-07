@@ -72,15 +72,27 @@ export default function Dashboard() {
     const inviteLink = couple?.id
       ? `https://t.me/${botUsername}?start=couple_${couple.id}`
       : `https://t.me/${botUsername}`;
-    navigator.clipboard.writeText(inviteLink);
-    setCopied(true);
+    
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(inviteLink);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      }
+    } catch (e) {
+      console.error("Clipboard copy failed:", e);
+    }
     
     // WebApp haptic feedback
     if (typeof window !== "undefined" && window.Telegram?.WebApp?.HapticFeedback) {
       window.Telegram.WebApp.HapticFeedback.notificationOccurred("success");
     }
 
-    setTimeout(() => setCopied(false), 2000);
+    // Natively share in Telegram if inside WebApp
+    if (typeof window !== "undefined" && window.Telegram?.WebApp?.openTelegramLink) {
+      const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(inviteLink)}&text=${encodeURIComponent("Присоединяйся к нашему гнездышку в IS TWO! 🌸")}`;
+      window.Telegram.WebApp.openTelegramLink(shareUrl);
+    }
   };
 
   return (
@@ -206,27 +218,44 @@ export default function Dashboard() {
       </div>
 
       {/* Share / Invite Partner */}
-      <div className="glass-card rounded-3xl p-5 flex items-center justify-between relative overflow-hidden">
+      <div className="glass-card rounded-3xl p-5 flex flex-col gap-3 relative overflow-hidden">
         <div className="absolute right-0 top-0 w-24 h-24 bg-gradient-to-bl from-rose-400/10 to-transparent blur-xl pointer-events-none"></div>
-        <div className="flex flex-col">
-          <span className="text-sm font-bold text-slate-800 dark:text-rose-100">
-            Связь сердец 🔗
-          </span>
-          <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400 mt-0.5 max-w-[220px]">
-            Отправьте пригласительную ссылку вашей второй половинке
-          </span>
+        <div className="flex items-center justify-between">
+          <div className="flex flex-col">
+            <span className="text-sm font-bold text-slate-800 dark:text-rose-100">
+              Связь сердец 🔗
+            </span>
+            <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400 mt-0.5 max-w-[220px]">
+              Отправьте пригласительную ссылку вашей второй половинке
+            </span>
+          </div>
+          
+          <button
+            onClick={handleShare}
+            className={`h-12 w-12 rounded-2xl flex items-center justify-center transition-all ${
+              copied
+                ? "bg-emerald-500 text-white shadow-md shadow-emerald-300/40 scale-95"
+                : "bg-rose-gradient text-white hover:opacity-95 shadow-md scale-100"
+            }`}
+          >
+            {copied ? <Check className="h-5 w-5" /> : <Share2 className="h-5 w-5" />}
+          </button>
         </div>
-        
-        <button
-          onClick={handleShare}
-          className={`h-12 w-12 rounded-2xl flex items-center justify-center transition-all ${
-            copied
-              ? "bg-emerald-500 text-white shadow-md shadow-emerald-300/40 scale-95"
-              : "bg-rose-gradient text-white hover:opacity-95 shadow-md scale-100"
-          }`}
-        >
-          {copied ? <Check className="h-5 w-5" /> : <Share2 className="h-5 w-5" />}
-        </button>
+
+        {couple?.id && (
+          <div className="flex items-center gap-2 mt-1 bg-white/40 dark:bg-slate-900/40 rounded-xl p-2 border border-rose-100/50 dark:border-rose-950/20">
+            <input
+              type="text"
+              readOnly
+              value={`https://t.me/${botUsername}?start=couple_${couple.id}`}
+              onClick={(e) => (e.target as HTMLInputElement).select()}
+              className="flex-1 bg-transparent text-[10px] font-mono text-slate-600 dark:text-rose-200 outline-none select-all truncate"
+            />
+            <span className="text-[8px] font-extrabold uppercase text-rose-400 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/30 px-1.5 py-0.5 rounded">
+              Ссылка
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Quick stats / Features info */}
