@@ -162,11 +162,11 @@ export default function Dashboard() {
             </span>
           </div>
 
-          {/* Connected Icon */}
-          <div className="relative">
-            <div className="h-11 w-11 rounded-full bg-rose-gradient flex items-center justify-center animate-pulse-heart text-white shadow-lg">
-              <Heart className="h-5 w-5 fill-white stroke-none" />
-            </div>
+          {/* Connected Icon (Heart Wave Flow) */}
+          <div className="relative w-16 h-10 flex items-center justify-center overflow-visible select-none">
+            <span className="absolute text-rose-500 animate-heart-flow-1 text-base">❤️</span>
+            <span className="absolute text-pink-500 animate-heart-flow-2 text-xs">💖</span>
+            <span className="absolute text-rose-400 animate-heart-flow-3 text-sm">❤️</span>
           </div>
 
           {/* Partner Avatar */}
