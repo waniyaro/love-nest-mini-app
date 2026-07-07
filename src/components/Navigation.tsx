@@ -41,7 +41,7 @@ export default function Navigation() {
           {/* Centered Scoop SVG */}
           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-20 h-16">
             <svg viewBox="0 0 80 64" width="80" height="64" className="text-slate-950 dark:text-slate-900 fill-current">
-              <path d="M 0 0 L 10 0 C 18 0, 22 36, 40 36 C 58 36, 62 0, 70 0 L 80 0 L 80 64 L 0 64 Z" />
+              <path d="M 0 0 C 10 0, 18 36, 40 36 C 62 36, 70 0, 80 0 L 80 64 L 0 64 Z" />
             </svg>
           </div>
 
@@ -96,6 +96,11 @@ export default function Navigation() {
               >
                 {item.label}
               </span>
+
+              {/* Active indicator bar */}
+              {isActive && (
+                <div className="absolute bottom-1 w-4 h-0.5 bg-rose-500 rounded-full" />
+              )}
             </Link>
           );
         })}
