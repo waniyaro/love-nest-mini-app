@@ -41,7 +41,7 @@ export default function Navigation() {
           {/* Centered Scoop SVG */}
           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-20 h-16">
             <svg viewBox="0 0 80 64" width="80" height="64" className="text-slate-950 dark:text-slate-900 fill-current">
-              <path d="M 0 0 L 10 0 C 20 0, 24 24, 40 24 C 56 24, 60 0, 70 0 L 80 0 L 80 64 L 0 64 Z" />
+              <path d="M 0 0 L 10 0 C 18 0, 22 36, 40 36 C 58 36, 62 0, 70 0 L 80 0 L 80 64 L 0 64 Z" />
             </svg>
           </div>
 
@@ -75,7 +75,7 @@ export default function Navigation() {
               <div 
                 className={`flex items-center justify-center transition-all duration-300 ease-in-out ${
                   isActive 
-                    ? "absolute -top-3 h-10 w-10 text-white scale-110 z-10" 
+                    ? "absolute -top-2.5 h-10 w-10 text-white scale-110 z-10" 
                     : "h-8 w-8 text-slate-400 dark:text-slate-500 hover:text-slate-200"
                 }`}
               >
