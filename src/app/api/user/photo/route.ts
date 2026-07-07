@@ -21,7 +21,13 @@ export async function GET(req: NextRequest) {
 
   try {
     const botToken = process.env.TELEGRAM_BOT_TOKEN;
-    if (!botToken || botToken === "dummy_token" || botToken === "YOUR_TELEGRAM_BOT_TOKEN_FROM_BOTFATHER") {
+    if (
+      !botToken ||
+      botToken === "dummy_token" ||
+      botToken === "YOUR_TELEGRAM_BOT_TOKEN_FROM_BOTFATHER" ||
+      telegramId === "987654321" ||
+      telegramId === "123456789"
+    ) {
       // In development / mock mode, redirect to UI avatars placeholder
       return Response.redirect(`https://ui-avatars.com/api/?name=${encodeURIComponent(userExists.firstName)}&background=FDA4AF&color=FFF`);
     }
