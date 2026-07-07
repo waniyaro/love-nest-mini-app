@@ -54,11 +54,11 @@ export default function Navigation() {
               href={item.href}
               className="relative flex flex-col items-center justify-center w-16 h-full select-none"
             >
-              {/* Elevated circular active icon container */}
+              {/* Elevated active icon container (no background circle) */}
               <div 
                 className={`flex items-center justify-center transition-all duration-300 ease-in-out ${
                   isActive 
-                    ? "absolute -top-4 h-12 w-12 rounded-full bg-rose-gradient text-white shadow-lg scale-110 z-10" 
+                    ? "absolute -top-3 h-10 w-10 text-white scale-110 z-10" 
                     : "h-8 w-8 text-slate-400 dark:text-slate-500 hover:text-slate-200"
                 }`}
               >
