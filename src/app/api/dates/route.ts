@@ -68,3 +68,125 @@ export async function POST(req: Request) {
     return Response.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }
+
+export async function PATCH(req: Request) {
+  const authResult = await authenticateTelegramUser(req.headers.get("authorization"));
+  if ("error" in authResult) {
+    return Response.json({ error: authResult.error }, { status: authResult.status });
+  }
+
+  try {
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get("id");
+    if (!id) {
+      return Response.json({ error: "Missing date ID" }, { status: 400 });
+    }
+
+    const currentEvent = await prisma.dateEvent.findUnique({
+      where: { id },
+    });
+
+    if (!currentEvent || currentEvent.coupleId !== authResult.couple.id) {
+      return Response.json({ error: "Date event not found" }, { status: 404 });
+    }
+
+    const body = await req.json();
+    const updateData: any = {};
+
+    // 1. Handle confirmation status (pending -> accepted/declined)
+    if (body.status) {
+      updateData.status = body.status;
+      
+      // Notify partner of status change
+      if (authResult.partnerId) {
+        const statusEmoji = body.status === "accepted" ? "✅" : "❌";
+        const statusText = body.status === "accepted" ? "принял(а)" : "отклонил(а)/перенес(ла)";
+        await sendTelegramNotification(
+          authResult.partnerId,
+          `${statusEmoji} <b>Ответ на свидание!</b>\n\n<b>${authResult.user.firstName}</b> ${statusText} ваше приглашение на свидание <b>"${currentEvent.title}"</b>!`
+        );
+      }
+    }
+
+    // 2. Handle feedback / reviews / photo / completed
+    const isCreatorMe = currentEvent.createdById === authResult.user.telegramId;
+    
+    if (body.feedback !== undefined) {
+      if (isCreatorMe) {
+        updateData.creatorFeedback = body.feedback;
+      } else {
+        updateData.partnerFeedback = body.feedback;
+      }
+    }
+
+    if (body.emoji !== undefined) {
+      if (isCreatorMe) {
+        updateData.creatorEmoji = body.emoji;
+      } else {
+        updateData.partnerEmoji = body.emoji;
+      }
+    }
+
+    if (body.photo !== undefined) {
+      updateData.photo = body.photo;
+    }
+
+    if (body.isCompleted !== undefined) {
+      updateData.isCompleted = body.isCompleted;
+    }
+
+    const updatedEvent = await prisma.dateEvent.update({
+      where: { id },
+      data: updateData,
+    });
+
+    // Notify partner of feedback/rating
+    if (body.feedback && body.emoji) {
+      const recipientId = isCreatorMe ? authResult.partnerId : currentEvent.createdById;
+      if (recipientId) {
+        await sendTelegramNotification(
+          recipientId,
+          `💖 <b>Партнер оставил отзыв о свидании!</b>\n\n<b>${authResult.user.firstName}</b> поделился(лась) эмоциями о свидании <b>"${currentEvent.title}"</b>:\n${body.emoji} <i>"${body.feedback}"</i>\n\n<i>Откройте IS TWO, чтобы посмотреть воспоминания!</i> 📸`
+        );
+      }
+    }
+
+    return Response.json({ date: updatedEvent });
+  } catch (error) {
+    console.error("Error updating date event:", error);
+    return Response.json({ error: "Internal Server Error" }, { status: 500 });
+  }
+}
+
+export async function DELETE(req: Request) {
+  const authResult = await authenticateTelegramUser(req.headers.get("authorization"));
+  if ("error" in authResult) {
+    return Response.json({ error: authResult.error }, { status: authResult.status });
+  }
+
+  try {
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get("id");
+    if (!id) {
+      return Response.json({ error: "Missing date ID" }, { status: 400 });
+    }
+
+    const currentEvent = await prisma.dateEvent.findUnique({
+      where: { id },
+    });
+
+    if (!currentEvent || currentEvent.coupleId !== authResult.couple.id) {
+      return Response.json({ error: "Date event not found" }, { status: 404 });
+    }
+
+    await prisma.dateEvent.delete({
+      where: { id },
+    });
+
+    return Response.json({ success: true });
+  } catch (error) {
+    console.error("Error deleting date event:", error);
+    return Response.json({ error: "Internal Server Error" }, { status: 500 });
+  }
+}
+

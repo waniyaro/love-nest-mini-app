@@ -12,10 +12,11 @@ model Couple {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  users     User[]
-  dates     DateEvent[]
-  events    CalendarEvent[]
-  wishlist  WishlistItem[]
+  users         User[]
+  dates         DateEvent[]
+  events        CalendarEvent[]
+  wishlist      WishlistItem[]
+  favoriteItems FavoriteItem[]
 }
 
 model User {
@@ -31,17 +32,24 @@ model User {
 }
 
 model DateEvent {
-  id          String   @id @default(uuid())
-  title       String
-  description String?
-  location    String?
-  dateTime    DateTime
-  isCompleted Boolean  @default(false)
-  coupleId    String
-  couple      Couple   @relation(fields: [coupleId], references: [id], onDelete: Cascade)
-  createdById String   // Telegram ID of the creator
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id              String   @id @default(uuid())
+  title           String
+  description     String?
+  location        String?
+  dateTime        DateTime
+  isCompleted     Boolean  @default(false)
+  coupleId        String
+  couple          Couple   @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+  createdById     String   // Telegram ID of the creator
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  status          String   @default("pending") // "pending" | "accepted" | "declined"
+  creatorFeedback String?
+  creatorEmoji    String?
+  partnerFeedback String?
+  partnerEmoji    String?
+  photo           String?  // Base64 compressed image string
+  feedbackNotified Boolean @default(false)
 }
 
 model CalendarEvent {
@@ -58,16 +66,34 @@ model CalendarEvent {
 }
 
 model WishlistItem {
+  id            String   @id @default(uuid())
+  title         String
+  url           String?
+  price         String?
+  type          String   @default("item") // "item" or "place"
+  isPurchased   Boolean  @default(false)
+  coupleId      String
+  couple        Couple   @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+  createdById   String   // Telegram ID of the creator
+  creator       User     @relation(fields: [createdById], references: [telegramId], onDelete: Cascade)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  description   String?
+  photo         String?  // Base64 compressed image string
+  creatorRating Int?     // 1-5 rating
+  partnerRating Int?     // 1-5 rating
+}
+
+model FavoriteItem {
   id          String   @id @default(uuid())
   title       String
-  url         String?
-  price       String?
-  type        String   @default("item") // "item" or "place"
-  isPurchased Boolean  @default(false)
+  category    String   // "movie" | "song" | "place" | "other"
+  creatorNote String?
+  partnerNote String?
   coupleId    String
   couple      Couple   @relation(fields: [coupleId], references: [id], onDelete: Cascade)
-  createdById String   // Telegram ID of the creator
-  creator     User     @relation(fields: [createdById], references: [telegramId], onDelete: Cascade)
+  createdById String
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
+

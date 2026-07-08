@@ -27,7 +27,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    const { title, url, price, type } = await req.json();
+    const { title, url, price, type, description, photo, rating } = await req.json();
     if (!title) {
       return Response.json({ error: "Title is required" }, { status: 400 });
     }
@@ -38,6 +38,9 @@ export async function POST(req: Request) {
         url: url || null,
         price: price || null,
         type: type || "item",
+        description: description || null,
+        photo: photo || null,
+        creatorRating: rating ? parseInt(rating) : null,
         coupleId: authResult.couple.id,
         createdById: authResult.user.telegramId,
       },
@@ -96,13 +99,36 @@ export async function PATCH(req: Request) {
       return Response.json({ error: "Item not found" }, { status: 404 });
     }
 
+    const body = await req.json().catch(() => ({}));
+    const updateData: any = {};
+
+    // Determine what field we are updating
+    if (body.togglePurchased) {
+      updateData.isPurchased = !currentItem.isPurchased;
+    } else {
+      if (body.isPurchased !== undefined) updateData.isPurchased = body.isPurchased;
+      if (body.description !== undefined) updateData.description = body.description;
+      if (body.photo !== undefined) updateData.photo = body.photo;
+      if (body.price !== undefined) updateData.price = body.price;
+      if (body.url !== undefined) updateData.url = body.url;
+      
+      const isCreatorMe = currentItem.createdById === authResult.user.telegramId;
+      if (body.rating !== undefined) {
+        if (isCreatorMe) {
+          updateData.creatorRating = body.rating ? parseInt(body.rating) : null;
+        } else {
+          updateData.partnerRating = body.rating ? parseInt(body.rating) : null;
+        }
+      }
+    }
+
     const updatedItem = await prisma.wishlistItem.update({
       where: { id },
-      data: { isPurchased: !currentItem.isPurchased },
+      data: updateData,
     });
 
     // Notify partner if marked as purchased/visited
-    if (authResult.partnerId && updatedItem.isPurchased) {
+    if (authResult.partnerId && updatedItem.isPurchased && !currentItem.isPurchased) {
       const isPlace = updatedItem.type === "place";
       const itemTitle = updatedItem.url
         ? `<a href="${updatedItem.url}"><b>${updatedItem.title}</b></a>`

@@ -14,53 +14,9 @@ export default function Navigation() {
     { href: "/wishlist", label: "Вишлист", icon: Gift },
   ];
 
-  const activeIndex = navItems.findIndex((item) => pathname === item.href);
-  const index = activeIndex === -1 ? 0 : activeIndex;
-
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 pb-safe max-w-md mx-auto overflow-visible select-none h-16">
-      {/* Sliding Fluid Background Scoop */}
-      <div className="absolute inset-0 -z-10 overflow-visible pointer-events-none">
-        {/* Left solid block */}
-        <div 
-          className="absolute left-0 top-0 h-16 bg-slate-950 dark:bg-slate-900 transition-all duration-300 ease-in-out rounded-tl-3xl"
-          style={{ width: `${index * 25}%` }}
-        />
-        
-        {/* Scoop SVG Container (25% width of active column) */}
-        <div 
-          className="absolute top-0 h-16 w-[25%] transition-all duration-300 ease-in-out overflow-visible"
-          style={{ left: `${index * 25}%` }}
-        >
-          {/* Left filler div inside column to avoid transparent gaps */}
-          <div 
-            className="absolute left-0 top-0 bottom-0 bg-slate-950 dark:bg-slate-900 transition-colors duration-300"
-            style={{ right: 'calc(50% + 40px)' }}
-          />
-          
-          {/* Centered Scoop SVG */}
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-20 h-16">
-            <svg viewBox="0 0 80 64" width="80" height="64" className="text-slate-950 dark:text-slate-900 fill-current">
-              <path d="M 0 0 C 10 0, 18 36, 40 36 C 62 36, 70 0, 80 0 L 80 64 L 0 64 Z" />
-            </svg>
-          </div>
-
-          {/* Right filler div inside column to avoid transparent gaps */}
-          <div 
-            className="absolute right-0 top-0 bottom-0 bg-slate-950 dark:bg-slate-900 transition-colors duration-300"
-            style={{ left: 'calc(50% + 40px)' }}
-          />
-        </div>
-
-        {/* Right solid block */}
-        <div 
-          className="absolute right-0 top-0 h-16 bg-slate-950 dark:bg-slate-900 transition-all duration-300 ease-in-out rounded-tr-3xl"
-          style={{ left: `${(index + 1) * 25}%` }}
-        />
-      </div>
-
-      {/* Navigation Items (4 equal columns) */}
-      <div className="grid grid-cols-4 h-16 items-center">
+    <nav className="fixed bottom-4 left-4 right-4 z-50 max-w-md mx-auto select-none">
+      <div className="glass-card rounded-full px-4 py-2.5 flex items-center justify-around shadow-lg border border-white/20 dark:border-rose-950/20 backdrop-blur-xl">
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = pathname === item.href;
@@ -69,38 +25,30 @@ export default function Navigation() {
             <Link
               key={item.href}
               href={item.href}
-              className="relative flex flex-col items-center justify-center h-full w-full select-none"
+              className={`flex flex-col items-center justify-center py-1.5 px-3.5 rounded-2xl transition-all duration-300 relative ${
+                isActive 
+                  ? "text-rose-500 scale-105" 
+                  : "text-slate-400 dark:text-slate-500 hover:text-rose-400/80"
+              }`}
             >
-              {/* Elevated active icon container (no background circle) */}
-              <div 
-                className={`flex items-center justify-center transition-all duration-300 ease-in-out ${
-                  isActive 
-                    ? "absolute -top-2.5 h-10 w-10 text-white scale-110 z-10" 
-                    : "h-8 w-8 text-slate-400 dark:text-slate-500 hover:text-slate-200"
-                }`}
-              >
-                <Icon
-                  className={`h-5.5 w-5.5 transition-transform duration-300 ${
-                    isActive ? "stroke-[2.5px]" : "stroke-[2px]"
-                  }`}
-                />
-              </div>
+              {/* Active Background Glow Pill */}
+              {isActive && (
+                <span className="absolute inset-0 bg-rose-50 dark:bg-rose-950/25 rounded-2xl -z-10 animate-fade-in" />
+              )}
               
-              {/* Text label that slides down and fades out when active */}
+              <Icon
+                className={`h-5 w-5 transition-transform duration-300 ${
+                  isActive ? "stroke-[2.5px] scale-110" : "stroke-[2px]"
+                }`}
+              />
+              
               <span 
-                className={`text-[9px] font-bold tracking-wide mt-auto mb-1 transition-all duration-300 ${
-                  isActive 
-                    ? "opacity-0 translate-y-2 pointer-events-none" 
-                    : "text-slate-400 dark:text-slate-500"
+                className={`text-[9px] font-extrabold tracking-wide mt-1.5 transition-colors duration-300 ${
+                  isActive ? "text-rose-600 dark:text-rose-400" : "text-slate-400 dark:text-slate-500"
                 }`}
               >
                 {item.label}
               </span>
-
-              {/* Active indicator bar */}
-              {isActive && (
-                <div className="absolute bottom-1 w-4 h-0.5 bg-rose-500 rounded-full" />
-              )}
             </Link>
           );
         })}

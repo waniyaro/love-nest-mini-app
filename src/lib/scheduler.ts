@@ -2,12 +2,14 @@ import { prisma } from "./prisma";
 import { sendTelegramNotification } from "./bot";
 
 export function startScheduler() {
-  console.log("⏰ Anniversary scheduler started.");
+  console.log("⏰ Anniversary and feedback scheduler started.");
   
   // Run immediately on startup, then every hour
   checkAnniversaries();
+  checkRecentDatesForFeedback();
   setInterval(() => {
     checkAnniversaries();
+    checkRecentDatesForFeedback();
   }, 60 * 60 * 1000); // 1 hour
 }
 
@@ -93,3 +95,61 @@ function getYearPlural(years: number) {
   }
   return `${years} лет`;
 }
+
+async function checkRecentDatesForFeedback() {
+  try {
+    const now = new Date();
+    
+    // Find past date events that happened (e.g. dateTime < now)
+    // and feedbackNotified is false, and status is "accepted" (no need to remind of declined dates!)
+    const pastEvents = await prisma.dateEvent.findMany({
+      where: {
+        dateTime: { lt: now },
+        feedbackNotified: false,
+        status: "accepted",
+      },
+      include: {
+        couple: {
+          include: {
+            users: true,
+          },
+        },
+      },
+    });
+
+    for (const event of pastEvents) {
+      const users = event.couple.users;
+      
+      // Let's determine who has not left feedback yet
+      const needsCreatorFeedback = !event.creatorFeedback;
+      const needsPartnerFeedback = !event.partnerFeedback;
+
+      let notifiedAny = false;
+
+      // Find the creator and partner users
+      const creatorUser = users.find((u) => u.telegramId === event.createdById);
+      const partnerUser = users.find((u) => u.telegramId !== event.createdById);
+
+      const reminderMessage = `📸 <b>Как прошло свидание?</b>\n\nСвидание <b>"${event.title}"</b> уже завершилось! Поделитесь своими впечатлениями, выберите смайлик эмоций и загрузите памятное фото в альбом! 🥰\n\n<i>Откройте IS TWO, чтобы оставить отзыв!</i> 🌸`;
+
+      if (needsCreatorFeedback && creatorUser) {
+        await sendTelegramNotification(creatorUser.telegramId, reminderMessage);
+        notifiedAny = true;
+      }
+
+      if (needsPartnerFeedback && partnerUser) {
+        await sendTelegramNotification(partnerUser.telegramId, reminderMessage);
+        notifiedAny = true;
+      }
+
+      // Mark as notified so we don't spam them
+      await prisma.dateEvent.update({
+        where: { id: event.id },
+        data: { feedbackNotified: true },
+      });
+    }
+  } catch (error) {
+    console.error("Error in checkRecentDatesForFeedback scheduler:", error);
+  }
+}
+

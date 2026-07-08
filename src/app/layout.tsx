@@ -20,6 +20,14 @@ export const metadata: Metadata = {
   description: "Our little digital nest",
 };
 
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+};
+
+
 export default function RootLayout({
   children,
 }: Readonly<{
