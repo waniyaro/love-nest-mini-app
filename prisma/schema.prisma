@@ -48,7 +48,7 @@ model DateEvent {
   creatorEmoji    String?
   partnerFeedback String?
   partnerEmoji    String?
-  photo           String?  // Base64 compressed image string
+  photoRelation   DateEventPhoto?
   feedbackNotified Boolean @default(false)
 }
 
@@ -61,8 +61,8 @@ model CalendarEvent {
   coupleId         String
   couple           Couple   @relation(fields: [coupleId], references: [id], onDelete: Cascade)
   createdById      String   // Telegram ID of the creator
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
 
 model WishlistItem {
@@ -79,7 +79,7 @@ model WishlistItem {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   description   String?
-  photo         String?  // Base64 compressed image string
+  photoRelation WishlistItemPhoto?
   creatorRating Int?     // 1-5 rating
   partnerRating Int?     // 1-5 rating
 }
@@ -97,3 +97,16 @@ model FavoriteItem {
   updatedAt   DateTime @updatedAt
 }
 
+model DateEventPhoto {
+  id          String    @id @default(uuid())
+  photo       String    // Base64 string
+  dateEventId String    @unique
+  dateEvent   DateEvent @relation(fields: [dateEventId], references: [id], onDelete: Cascade)
+}
+
+model WishlistItemPhoto {
+  id             String       @id @default(uuid())
+  photo          String       // Base64 string
+  wishlistItemId String       @unique
+  wishlistItem   WishlistItem @relation(fields: [wishlistItemId], references: [id], onDelete: Cascade)
+}

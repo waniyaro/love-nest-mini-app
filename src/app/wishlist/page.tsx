@@ -3,8 +3,9 @@
 export const dynamic = "force-dynamic";
 
 import { useTelegram } from "@/components/TelegramProvider";
-import { useEffect, useState, useCallback, useRef } from "react";
-import { Gift, Plus, ExternalLink, Heart, Trash2, MapPin, Check, Sparkles, Image as ImageIcon, HeartIcon } from "lucide-react";
+import { useEffect, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
+import { Gift, Plus, ExternalLink, Heart, Trash2, MapPin, Check, Sparkles, HeartIcon } from "lucide-react";
 
 interface WishlistItem {
   id: string;
@@ -20,47 +21,9 @@ interface WishlistItem {
   partnerRating: number | null;
 }
 
-const compressImage = (file: File): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = (event) => {
-      const img = new Image();
-      img.src = event.target?.result as string;
-      img.onload = () => {
-        const canvas = document.createElement("canvas");
-        const MAX_WIDTH = 400;
-        const MAX_HEIGHT = 400;
-        let width = img.width;
-        let height = img.height;
-
-        if (width > height) {
-          if (width > MAX_WIDTH) {
-            height *= MAX_WIDTH / width;
-            width = MAX_WIDTH;
-          }
-        } else {
-          if (height > MAX_HEIGHT) {
-            width *= MAX_HEIGHT / height;
-            height = MAX_HEIGHT;
-          }
-        }
-
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext("2d");
-        ctx?.drawImage(img, 0, 0, width, height);
-        const dataUrl = canvas.toDataURL("image/jpeg", 0.7);
-        resolve(dataUrl);
-      };
-      img.onerror = (err) => reject(err);
-    };
-    reader.onerror = (err) => reject(err);
-  });
-};
-
 export default function WishlistPage() {
   const { initData, user, partner } = useTelegram();
+  const router = useRouter();
   const [items, setItems] = useState<WishlistItem[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -71,22 +34,11 @@ export default function WishlistPage() {
   // Expanded card state
   const [expandedItemId, setExpandedItemId] = useState<string | null>(null);
 
-  // Form State
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [url, setUrl] = useState("");
-  const [price, setPrice] = useState("");
-  const [photo, setPhoto] = useState<string | null>(null);
-  const [rating, setRating] = useState<number | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-  
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
   const loadWishlist = useCallback(async () => {
     try {
       const res = await fetch("/api/wishlist", {
         headers: { Authorization: `Bearer ${initData}` },
+        cache: "no-store",
       });
       if (res.ok) {
         const data = await res.json();
@@ -102,55 +54,6 @@ export default function WishlistPage() {
   useEffect(() => {
     loadWishlist();
   }, [loadWishlist]);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!title) return;
-
-    let formattedUrl = url.trim();
-    if (formattedUrl && !/^https?:\/\//i.test(formattedUrl)) {
-      formattedUrl = `https://${formattedUrl}`;
-    }
-
-    setSubmitting(true);
-    try {
-      const res = await fetch("/api/wishlist", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${initData}`,
-        },
-        body: JSON.stringify({
-          title: title.trim(),
-          url: formattedUrl || undefined,
-          price: price.trim() || undefined,
-          type: mainTab === "items" ? "item" : "place",
-          description: description.trim() || undefined,
-          photo: photo || undefined,
-          rating: rating || undefined,
-        }),
-      });
-
-      if (res.ok) {
-        await loadWishlist();
-        setIsModalOpen(false);
-        setTitle("");
-        setDescription("");
-        setUrl("");
-        setPrice("");
-        setPhoto(null);
-        setRating(null);
-        
-        if (typeof window !== "undefined" && window.Telegram?.WebApp?.HapticFeedback) {
-          window.Telegram.WebApp.HapticFeedback.notificationOccurred("success");
-        }
-      }
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setSubmitting(false);
-    }
-  };
 
   const handleTogglePurchased = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation(); // Avoid expanding card
@@ -207,40 +110,37 @@ export default function WishlistPage() {
   const handleDelete = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation(); // Avoid expanding card
 
-    const confirmed = window.confirm("Вы уверены, что хотите удалить этот элемент?");
-    if (!confirmed) return;
+    const message = "Вы уверены, что хотите удалить этот элемент?";
+    const proceedDelete = async () => {
+      const originalItems = [...items];
+      setItems((prev) => prev.filter((item) => item.id !== id));
 
-    const originalItems = [...items];
-    setItems((prev) => prev.filter((item) => item.id !== id));
-
-    try {
-      const res = await fetch(`/api/wishlist?id=${id}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${initData}` },
-      });
-      if (!res.ok) {
-        setItems(originalItems);
-      } else {
-        if (typeof window !== "undefined" && window.Telegram?.WebApp?.HapticFeedback) {
-          window.Telegram.WebApp.HapticFeedback.notificationOccurred("warning");
+      try {
+        const res = await fetch(`/api/wishlist?id=${id}`, {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${initData}` },
+        });
+        if (!res.ok) {
+          setItems(originalItems);
+        } else {
+          if (typeof window !== "undefined" && window.Telegram?.WebApp?.HapticFeedback) {
+            window.Telegram.WebApp.HapticFeedback.notificationOccurred("warning");
+          }
         }
+      } catch (err) {
+        console.error(err);
+        setItems(originalItems);
       }
-    } catch (e) {
-      console.error(e);
-      setItems(originalItems);
-    }
-  };
+    };
 
-  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    try {
-      const compressed = await compressImage(file);
-      setPhoto(compressed);
-    } catch (err) {
-      console.error("Error compressing image:", err);
-      alert("Не удалось загрузить изображение.");
+    if (typeof window !== "undefined" && window.Telegram?.WebApp?.showConfirm) {
+      window.Telegram.WebApp.showConfirm(message, (confirmed) => {
+        if (confirmed) proceedDelete();
+      });
+    } else {
+      if (window.confirm(message)) {
+        proceedDelete();
+      }
     }
   };
 
@@ -283,6 +183,11 @@ export default function WishlistPage() {
     displayedItems = placesList;
   }
 
+  const navigateToNew = () => {
+    const typeQuery = mainTab === "places" ? "place" : "item";
+    router.push(`/wishlist/new?type=${typeQuery}`);
+  };
+
   return (
     <div className="flex flex-col gap-5 pb-6">
       {/* Page Header */}
@@ -296,7 +201,7 @@ export default function WishlistPage() {
           )}
         </h1>
         <button
-          onClick={() => setIsModalOpen(true)}
+          onClick={navigateToNew}
           className="h-10 px-4.5 rounded-full bg-rose-gradient text-white text-xs font-bold shadow-md shadow-rose-200/50 flex items-center gap-1 transition-all active:scale-95"
         >
           <Plus className="h-4 w-4" />
@@ -403,11 +308,12 @@ export default function WishlistPage() {
               <div key={item.id} className="flex flex-col">
                 <div
                   onClick={() => setExpandedItemId(isExpanded ? null : item.id)}
-                  className={`glass-card rounded-2xl p-5 flex items-center justify-between transition-all duration-300 cursor-pointer ${cardBg} ${
+                  className={`glass-card rounded-3xl p-4 flex items-center justify-between transition-all duration-300 cursor-pointer ${cardBg} ${
                     isExpanded ? "ring-2 ring-rose-300/60 dark:ring-rose-950/60" : ""
                   }`}
                 >
-                  <div className="flex items-center gap-4 min-w-0 flex-1">
+                  <div className="flex items-center gap-3.5 min-w-0 flex-1">
+                    {/* Toggle check button */}
                     <button
                       onClick={(e) => handleTogglePurchased(item.id, e)}
                       className={`h-9 w-9 rounded-xl flex items-center justify-center border transition-all flex-shrink-0 active:scale-90 ${
@@ -423,10 +329,23 @@ export default function WishlistPage() {
                       )}
                     </button>
 
+                    {/* Thumbnail Image / Default Category Icon */}
+                    <div className="h-12 w-12 rounded-2xl overflow-hidden flex-shrink-0 flex items-center justify-center bg-slate-50/60 dark:bg-slate-900/50 border border-slate-100/10 shadow-inner">
+                      {item.photo ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={item.photo} alt={item.title} className="h-full w-full object-cover" />
+                      ) : item.type === "place" ? (
+                        <MapPin className="h-5 w-5 text-indigo-500 fill-indigo-500/10" />
+                      ) : (
+                        <Gift className="h-5 w-5 text-rose-500 fill-rose-500/10" />
+                      )}
+                    </div>
+
+                    {/* Text block */}
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
                         <h3
-                          className={`font-extrabold text-sm text-slate-800 dark:text-rose-100 truncate ${
+                          className={`font-black text-sm text-slate-800 dark:text-rose-100 truncate ${
                             item.isPurchased ? "line-through text-slate-400 dark:text-slate-500" : ""
                           }`}
                         >
@@ -438,6 +357,29 @@ export default function WishlistPage() {
                           </span>
                         )}
                       </div>
+
+                      {/* Heart rating preview on collapsed card for places */}
+                      {item.type === "place" && (myRating || partnerRating) && (
+                        <div className="flex flex-wrap gap-x-2 gap-y-0.5 items-center mt-1 text-[10px]">
+                          {myRating && (
+                            <div className="flex gap-0.5 items-center text-slate-600 dark:text-slate-400">
+                              <span className="font-bold">Вы:</span>
+                              {Array.from({ length: myRating }).map((_, idx) => (
+                                <HeartIcon key={`my-heart-col-${item.id}-${idx}`} className="h-3 w-3 text-rose-500 fill-rose-500" />
+                              ))}
+                            </div>
+                          )}
+                          {myRating && partnerRating && <span className="text-slate-300 dark:text-slate-700">|</span>}
+                          {partnerRating && (
+                            <div className="flex gap-0.5 items-center text-slate-600 dark:text-slate-400">
+                              <span className="font-bold">{partner?.firstName || "Партнер"}:</span>
+                              {Array.from({ length: partnerRating }).map((_, idx) => (
+                                <HeartIcon key={`part-heart-col-${item.id}-${idx}`} className="h-3 w-3 text-indigo-500 fill-indigo-500" />
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
 
                       <div className="flex flex-wrap items-center gap-2 mt-2">
                         {item.url && (
@@ -481,14 +423,7 @@ export default function WishlistPage() {
                       </div>
                     )}
 
-                    {item.photo && (
-                      <div className="rounded-2xl overflow-hidden shadow-sm border border-rose-100/20 w-full max-h-48 mt-1">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={item.photo} alt={item.title} className="w-full h-full object-cover max-h-48" />
-                      </div>
-                    )}
-
-                    {/* Places Ratings Section */}
+                    {/* Places Ratings Setting Section */}
                     {item.type === "place" && (
                       <div className="border-t border-slate-200/40 dark:border-slate-800/40 pt-4 flex flex-col gap-3">
                         <h4 className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
@@ -549,7 +484,7 @@ export default function WishlistPage() {
                       </div>
                     )}
 
-                    {!item.description && !item.photo && item.type !== "place" && (
+                    {!item.description && item.type !== "place" && (
                       <span className="text-[10px] italic text-slate-400 dark:text-slate-500 text-center">
                         Дополнительной информации нет.
                       </span>
@@ -575,171 +510,6 @@ export default function WishlistPage() {
               ? (itemSubTab === "my" ? "Добавьте вещи и сюрпризы, о которых вы мечтаете!" : "Партнер еще не добавил сюда свои желания.")
               : "Добавьте места, куда вы хотели бы сходить вместе!"}
           </p>
-        </div>
-      )}
-
-      {/* Add Item / Place Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-fade-in">
-          <form
-            onSubmit={handleSubmit}
-            className="glass-card rounded-3xl w-full max-w-sm p-6 shadow-2xl flex flex-col gap-4 overflow-y-auto max-h-[90vh] animate-float"
-          >
-            <div>
-              <h3 className="text-lg font-bold text-slate-800 dark:text-rose-100 flex items-center gap-1.5">
-                {mainTab === "items" ? "Новое желание" : "Новое место"}{" "}
-                {mainTab === "items" ? (
-                  <Gift className="h-5 w-5 text-rose-500" />
-                ) : (
-                  <MapPin className="h-5 w-5 text-rose-500" />
-                )}
-              </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                {mainTab === "items"
-                  ? "Добавьте товар в вишлист, и мы сразу сообщим вашему партнеру!"
-                  : "Добавьте место для свиданий, куда бы вы хотели сходить!"}
-              </p>
-            </div>
-
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                Название {mainTab === "items" ? "желания" : "места"}
-              </label>
-              <input
-                type="text"
-                required
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder={mainTab === "items" ? "Парные кулоны, плед..." : "Ресторан с панорамным видом, каток..."}
-                className="h-11 px-4 rounded-xl border border-rose-200 dark:border-rose-950/50 bg-white/50 dark:bg-slate-900/50 text-slate-800 dark:text-rose-100 text-base outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400 transition-all"
-              />
-            </div>
-
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                {mainTab === "items" ? "Примерная цена (необязательно)" : "Примерный бюджет (необязательно)"}
-              </label>
-              <input
-                type="text"
-                value={price}
-                onChange={(e) => setPrice(e.target.value)}
-                placeholder={mainTab === "items" ? "1500 ₽, $20..." : "3000 ₽, бесплатно..."}
-                className="h-11 px-4 rounded-xl border border-rose-200 dark:border-rose-950/50 bg-white/50 dark:bg-slate-900/50 text-slate-800 dark:text-rose-100 text-base outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400 transition-all"
-              />
-            </div>
-
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                {mainTab === "items" ? "Ссылка на товар (необязательно)" : "Ссылка на карту / информацию (необязательно)"}
-              </label>
-              <input
-                type="text"
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                placeholder={mainTab === "items" ? "https://wildberries.ru/..." : "https://yandex.ru/maps/..."}
-                className="h-11 px-4 rounded-xl border border-rose-200 dark:border-rose-950/50 bg-white/50 dark:bg-slate-900/50 text-slate-800 dark:text-rose-100 text-base outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400 transition-all"
-              />
-            </div>
-
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                Описание / Детали (необязательно)
-              </label>
-              <textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Размер, цвет или примечания..."
-                rows={2}
-                className="p-3.5 rounded-xl border border-rose-200 dark:border-rose-950/50 bg-white/50 dark:bg-slate-900/50 text-slate-800 dark:text-rose-100 text-base outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400 resize-none transition-all"
-              />
-            </div>
-
-            {/* Photo upload input */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                Фото / Иконка (необязательно)
-              </label>
-              <input
-                type="file"
-                accept="image/*"
-                ref={fileInputRef}
-                onChange={handlePhotoUpload}
-                className="hidden"
-              />
-              {photo ? (
-                <div className="flex items-center justify-between bg-white dark:bg-slate-900 p-2 rounded-xl border border-rose-200">
-                  <div className="flex items-center gap-2">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={photo} alt="Upload thumb" className="h-8 w-8 object-cover rounded" />
-                    <span className="text-[9px] font-bold text-slate-500">Фото загружено!</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setPhoto(null)}
-                    className="text-[9px] font-bold text-red-500 uppercase px-2 py-1"
-                  >
-                    Удалить
-                  </button>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="h-10 px-4 rounded-xl border border-dashed border-rose-300 text-rose-500 hover:bg-rose-50 text-xs font-bold transition-all flex items-center justify-center gap-1.5"
-                >
-                  <ImageIcon className="h-4.5 w-4.5" /> Выбрать изображение
-                </button>
-              )}
-            </div>
-
-            {/* Initial Rating setting for Places */}
-            {mainTab === "places" && (
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                  Ваша оценка желания пойти:
-                </label>
-                <div className="flex gap-2">
-                  {[1, 2, 3, 4, 5].map((val) => (
-                    <button
-                      key={`new-rating-${val}`}
-                      type="button"
-                      onClick={() => setRating(val)}
-                      className={`h-9 w-9 text-xs rounded-xl flex items-center justify-center transition-all ${
-                        rating === val ? "bg-rose-100 text-rose-500 font-bold scale-110 shadow-sm" : "bg-slate-100 text-slate-500"
-                      }`}
-                    >
-                      {val} <HeartIcon className="h-3 w-3 fill-current ml-0.5" />
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <div className="flex gap-3 mt-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setIsModalOpen(false);
-                  setTitle("");
-                  setUrl("");
-                  setPrice("");
-                  setPhoto(null);
-                  setRating(null);
-                  setDescription("");
-                }}
-                className="flex-1 h-11 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-900 dark:hover:bg-slate-800 dark:text-slate-300 text-xs font-bold transition-all"
-              >
-                Отмена
-              </button>
-              <button
-                type="submit"
-                disabled={submitting}
-                className="flex-1 h-11 rounded-xl bg-rose-gradient hover:opacity-95 disabled:opacity-50 text-white text-xs font-bold shadow-md shadow-rose-200 transition-all active:scale-95"
-              >
-                {submitting ? "Добавляем..." : "Добавить"}
-              </button>
-            </div>
-          </form>
         </div>
       )}
     </div>

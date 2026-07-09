@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { authenticateTelegramUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { sendTelegramNotification } from "@/lib/bot";
@@ -11,9 +13,19 @@ export async function GET(req: Request) {
   try {
     const wishlist = await prisma.wishlistItem.findMany({
       where: { coupleId: authResult.couple.id },
+      include: {
+        photoRelation: true,
+      },
       orderBy: { createdAt: "desc" },
     });
-    return Response.json({ wishlist });
+
+    const responseWishlist = wishlist.map((item) => ({
+      ...item,
+      photo: item.photoRelation?.photo || null,
+      photoRelation: undefined,
+    }));
+
+    return Response.json({ wishlist: responseWishlist });
   } catch (error) {
     console.error("Error fetching wishlist:", error);
     return Response.json({ error: "Internal Server Error" }, { status: 500 });
@@ -32,18 +44,25 @@ export async function POST(req: Request) {
       return Response.json({ error: "Title is required" }, { status: 400 });
     }
 
+    const itemData: any = {
+      title,
+      url: url || null,
+      price: price || null,
+      type: type || "item",
+      description: description || null,
+      creatorRating: rating ? parseInt(rating) : null,
+      coupleId: authResult.couple.id,
+      createdById: authResult.user.telegramId,
+    };
+
+    if (photo) {
+      itemData.photoRelation = {
+        create: { photo },
+      };
+    }
+
     const item = await prisma.wishlistItem.create({
-      data: {
-        title,
-        url: url || null,
-        price: price || null,
-        type: type || "item",
-        description: description || null,
-        photo: photo || null,
-        creatorRating: rating ? parseInt(rating) : null,
-        coupleId: authResult.couple.id,
-        createdById: authResult.user.telegramId,
-      },
+      data: itemData,
     });
 
     // Notify partner
@@ -108,7 +127,25 @@ export async function PATCH(req: Request) {
     } else {
       if (body.isPurchased !== undefined) updateData.isPurchased = body.isPurchased;
       if (body.description !== undefined) updateData.description = body.description;
-      if (body.photo !== undefined) updateData.photo = body.photo;
+      if (body.photo !== undefined) {
+        if (body.photo) {
+          updateData.photoRelation = {
+            upsert: {
+              create: { photo: body.photo },
+              update: { photo: body.photo },
+            },
+          };
+        } else {
+          const existingPhoto = await prisma.wishlistItemPhoto.findUnique({
+            where: { wishlistItemId: id },
+          });
+          if (existingPhoto) {
+            updateData.photoRelation = {
+              delete: true,
+            };
+          }
+        }
+      }
       if (body.price !== undefined) updateData.price = body.price;
       if (body.url !== undefined) updateData.url = body.url;
       

@@ -4,6 +4,7 @@ export const dynamic = "force-dynamic";
 
 import { useTelegram } from "@/components/TelegramProvider";
 import { useEffect, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { Star, Plus, Trash2, Film, Music, Compass, Sparkles, Edit3, Check, X, ChevronLeft } from "lucide-react";
 import Link from "next/link";
 
@@ -18,17 +19,12 @@ interface FavoriteItem {
 
 export default function FavoritesPage() {
   const { initData, user, partner } = useTelegram();
+  const router = useRouter();
   const [items, setItems] = useState<FavoriteItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Tabs for categories
   const [activeTab, setActiveTab] = useState<"movie" | "song" | "place" | "other">("movie");
-
-  // Form State
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [title, setTitle] = useState("");
-  const [note, setNote] = useState("");
-  const [submitting, setSubmitting] = useState(false);
 
   // Note Inline Editing State
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
@@ -39,6 +35,7 @@ export default function FavoritesPage() {
     try {
       const res = await fetch("/api/favorites", {
         headers: { Authorization: `Bearer ${initData}` },
+        cache: "no-store",
       });
       if (res.ok) {
         const data = await res.json();
@@ -54,41 +51,6 @@ export default function FavoritesPage() {
   useEffect(() => {
     loadFavorites();
   }, [loadFavorites]);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!title) return;
-
-    setSubmitting(true);
-    try {
-      const res = await fetch("/api/favorites", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${initData}`,
-        },
-        body: JSON.stringify({
-          title: title.trim(),
-          category: activeTab,
-          note: note.trim() || undefined,
-        }),
-      });
-
-      if (res.ok) {
-        await loadFavorites();
-        setIsModalOpen(false);
-        setTitle("");
-        setNote("");
-        if (typeof window !== "undefined" && window.Telegram?.WebApp?.HapticFeedback) {
-          window.Telegram.WebApp.HapticFeedback.notificationOccurred("success");
-        }
-      }
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setSubmitting(false);
-    }
-  };
 
   const handleUpdateNote = async (id: string) => {
     setSavingNote(true);
@@ -118,22 +80,32 @@ export default function FavoritesPage() {
   };
 
   const handleDelete = async (id: string) => {
-    const confirmed = window.confirm("Вы уверены, что хотите удалить этот элемент?");
-    if (!confirmed) return;
-
-    try {
-      const res = await fetch(`/api/favorites?id=${id}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${initData}` },
-      });
-      if (res.ok) {
-        await loadFavorites();
-        if (typeof window !== "undefined" && window.Telegram?.WebApp?.HapticFeedback) {
-          window.Telegram.WebApp.HapticFeedback.notificationOccurred("warning");
+    const message = "Вы уверены, что хотите удалить этот элемент?";
+    const proceedDelete = async () => {
+      try {
+        const res = await fetch(`/api/favorites?id=${id}`, {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${initData}` },
+        });
+        if (res.ok) {
+          await loadFavorites();
+          if (typeof window !== "undefined" && window.Telegram?.WebApp?.HapticFeedback) {
+            window.Telegram.WebApp.HapticFeedback.notificationOccurred("warning");
+          }
         }
+      } catch (e) {
+        console.error(e);
       }
-    } catch (e) {
-      console.error(e);
+    };
+
+    if (typeof window !== "undefined" && window.Telegram?.WebApp?.showConfirm) {
+      window.Telegram.WebApp.showConfirm(message, (confirmed) => {
+        if (confirmed) proceedDelete();
+      });
+    } else {
+      if (window.confirm(message)) {
+        proceedDelete();
+      }
     }
   };
 
@@ -157,6 +129,10 @@ export default function FavoritesPage() {
 
   const filteredItems = items.filter((item) => item.category === activeTab);
 
+  const handleAddClick = () => {
+    router.push(`/favorites/new?category=${activeTab}`);
+  };
+
   return (
     <div className="flex flex-col gap-5 pb-6">
       {/* Page Header */}
@@ -170,7 +146,7 @@ export default function FavoritesPage() {
           </h1>
         </div>
         <button
-          onClick={() => setIsModalOpen(true)}
+          onClick={handleAddClick}
           className="h-10 px-4.5 rounded-full bg-rose-gradient text-white text-xs font-bold shadow-md shadow-rose-200/50 flex items-center gap-1 transition-all active:scale-95"
         >
           <Plus className="h-4 w-4" />
@@ -312,77 +288,6 @@ export default function FavoritesPage() {
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-[200px]">
             Нажмите кнопку «Добавить», чтобы зафиксировать ваши любимые вещи!
           </p>
-        </div>
-      )}
-
-      {/* Add Favorite Item Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-fade-in">
-          <form
-            onSubmit={handleSubmit}
-            className="glass-card rounded-3xl w-full max-w-sm p-6 shadow-2xl flex flex-col gap-4 animate-float"
-          >
-            <div>
-              <h3 className="text-lg font-bold text-slate-800 dark:text-rose-100 flex items-center gap-1.5">
-                Новое любимое {getCategoryIcon(activeTab)}
-              </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                Добавьте предмет в наши общие списки!
-              </p>
-            </div>
-
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                Название / Название фильма, песни или места
-              </label>
-              <input
-                type="text"
-                required
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder={
-                  activeTab === "movie" ? "Интерстеллар, Титаник..." :
-                  activeTab === "song" ? "Perfect - Ed Sheeran..." :
-                  activeTab === "place" ? "Кофейня на углу..." : "Любимая настольная игра..."
-                }
-                className="h-11 px-4 rounded-xl border border-rose-200 dark:border-rose-950/50 bg-white/50 dark:bg-slate-900/50 text-slate-800 dark:text-rose-100 text-base outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400 transition-all"
-              />
-            </div>
-
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                Ваш отзыв / Описание
-              </label>
-              <textarea
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                placeholder="Почему вы любите это? Ваши эмоции..."
-                rows={3}
-                className="p-3.5 rounded-xl border border-rose-200 dark:border-rose-950/50 bg-white/50 dark:bg-slate-900/50 text-slate-800 dark:text-rose-100 text-base outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400 resize-none transition-all"
-              />
-            </div>
-
-            <div className="flex gap-3 mt-4">
-              <button
-                type="button"
-                onClick={() => {
-                  setIsModalOpen(false);
-                  setTitle("");
-                  setNote("");
-                }}
-                className="flex-1 h-11 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-900 dark:hover:bg-slate-800 dark:text-slate-300 text-xs font-bold transition-all"
-              >
-                Отмена
-              </button>
-              <button
-                type="submit"
-                disabled={submitting}
-                className="flex-1 h-11 rounded-xl bg-rose-gradient hover:opacity-95 disabled:opacity-50 text-white text-xs font-bold shadow-md shadow-rose-200 transition-all active:scale-95"
-              >
-                {submitting ? "Добавляем..." : "Добавить"}
-              </button>
-            </div>
-          </form>
         </div>
       )}
     </div>

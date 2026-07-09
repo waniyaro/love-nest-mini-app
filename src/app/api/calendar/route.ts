@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { authenticateTelegramUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { sendTelegramNotification } from "@/lib/bot";
@@ -58,6 +60,38 @@ export async function POST(req: Request) {
     return Response.json({ event });
   } catch (error) {
     console.error("Error creating calendar event:", error);
+    return Response.json({ error: "Internal Server Error" }, { status: 500 });
+  }
+}
+
+export async function DELETE(req: Request) {
+  const authResult = await authenticateTelegramUser(req.headers.get("authorization"));
+  if ("error" in authResult) {
+    return Response.json({ error: authResult.error }, { status: authResult.status });
+  }
+
+  try {
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get("id");
+    if (!id) {
+      return Response.json({ error: "Missing event ID" }, { status: 400 });
+    }
+
+    const event = await prisma.calendarEvent.findUnique({
+      where: { id },
+    });
+
+    if (!event || event.coupleId !== authResult.couple.id) {
+      return Response.json({ error: "Event not found" }, { status: 404 });
+    }
+
+    await prisma.calendarEvent.delete({
+      where: { id },
+    });
+
+    return Response.json({ success: true });
+  } catch (error) {
+    console.error("Error deleting calendar event:", error);
     return Response.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }

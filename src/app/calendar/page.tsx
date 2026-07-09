@@ -4,34 +4,32 @@ export const dynamic = "force-dynamic";
 
 import { useTelegram } from "@/components/TelegramProvider";
 import { useEffect, useState, useCallback } from "react";
-import { ChevronLeft, ChevronRight, Plus, Star, Gift, PartyPopper } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ChevronLeft, ChevronRight, Plus, Trash2 } from "lucide-react";
 
 interface CalendarEvent {
   id: string;
   title: string;
   description: string | null;
   date: string;
+  createdById: string;
 }
 
 export default function CalendarPage() {
-  const { initData } = useTelegram();
+  const { initData, user, partner } = useTelegram();
+  const router = useRouter();
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Calendar Navigation
   const [currentDate, setCurrentDate] = useState(new Date());
-  
-  // Event Form State
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedDay, setSelectedDay] = useState<number | null>(new Date().getDate());
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [submitting, setSubmitting] = useState(false);
 
   const loadEvents = useCallback(async () => {
     try {
       const res = await fetch("/api/calendar", {
         headers: { Authorization: `Bearer ${initData}` },
+        cache: "no-store",
       });
       if (res.ok) {
         const data = await res.json();
@@ -63,6 +61,11 @@ export default function CalendarPage() {
     "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"
   ];
 
+  const monthNamesGenitive = [
+    "января", "февраля", "марта", "апреля", "мая", "июня",
+    "июля", "августа", "сентября", "октября", "ноября", "декабря"
+  ];
+
   const handlePrevMonth = () => {
     setCurrentDate(new Date(year, month - 1, 1));
   };
@@ -85,49 +88,38 @@ export default function CalendarPage() {
   const getEventsForDay = (day: number) => {
     return events.filter((e) => {
       const d = new Date(e.date);
-      return d.getDate() === day && d.getMonth() === month && d.getFullYear() <= year;
+      return d.getDate() === day && d.getMonth() === month;
     });
   };
 
-  const handleDayClick = (day: number) => {
-    setSelectedDay(day);
-  };
+  const handleDeleteEvent = async (id: string) => {
+    const message = "Вы уверены, что хотите удалить эту памятную дату?";
+    const proceedDelete = async () => {
+      try {
+        const res = await fetch(`/api/calendar?id=${id}`, {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${initData}` },
+        });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!title || selectedDay === null) return;
-
-    setSubmitting(true);
-    try {
-      const eventDate = new Date(year, month, selectedDay, 12, 0, 0); // set to noon to avoid timezone shifts
-      const res = await fetch("/api/calendar", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${initData}`,
-        },
-        body: JSON.stringify({
-          title,
-          description,
-          date: eventDate.toISOString(),
-        }),
-      });
-
-      if (res.ok) {
-        await loadEvents();
-        setIsModalOpen(false);
-        setTitle("");
-        setDescription("");
-        
-        // Haptic feedback
-        if (typeof window !== "undefined" && window.Telegram?.WebApp?.HapticFeedback) {
-          window.Telegram.WebApp.HapticFeedback.notificationOccurred("success");
+        if (res.ok) {
+          if (typeof window !== "undefined" && window.Telegram?.WebApp?.HapticFeedback) {
+            window.Telegram.WebApp.HapticFeedback.notificationOccurred("warning");
+          }
+          await loadEvents();
         }
+      } catch (err) {
+        console.error(err);
       }
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setSubmitting(false);
+    };
+
+    if (typeof window !== "undefined" && window.Telegram?.WebApp?.showConfirm) {
+      window.Telegram.WebApp.showConfirm(message, (confirmed) => {
+        if (confirmed) proceedDelete();
+      });
+    } else {
+      if (window.confirm(message)) {
+        proceedDelete();
+      }
     }
   };
 
@@ -149,6 +141,11 @@ export default function CalendarPage() {
     return "⭐️";
   };
 
+  const handleAddClick = () => {
+    const dayQuery = selectedDay !== null ? selectedDay : new Date().getDate();
+    router.push(`/calendar/new?day=${dayQuery}&month=${month}&year=${year}`);
+  };
+
   return (
     <div className="flex flex-col gap-5 pb-6">
       {/* Page Header */}
@@ -156,15 +153,13 @@ export default function CalendarPage() {
         <h1 className="text-2xl font-black tracking-tight text-slate-800 dark:text-rose-100 flex items-center gap-1.5">
           Календарь <span className="text-rose-500">🗓️</span>
         </h1>
-        {selectedDay !== null && (
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="h-10 px-4 rounded-full bg-rose-gradient text-white text-xs font-bold shadow-md shadow-rose-200/50 flex items-center gap-1 transition-all active:scale-95"
-          >
-            <Plus className="h-4 w-4" />
-            Добавить
-          </button>
-        )}
+        <button
+          onClick={handleAddClick}
+          className="h-10 px-4.5 rounded-full bg-rose-gradient text-white text-xs font-bold shadow-md shadow-rose-200/50 flex items-center gap-1 transition-all active:scale-95"
+        >
+          <Plus className="h-4 w-4" />
+          Добавить
+        </button>
       </div>
 
       {/* Calendar Grid card */}
@@ -219,10 +214,10 @@ export default function CalendarPage() {
             return (
               <button
                 key={`day-${day}`}
-                onClick={() => handleDayClick(day)}
+                onClick={() => setSelectedDay(day)}
                 className={`h-10 rounded-xl flex flex-col items-center justify-center relative text-xs font-bold transition-all ${
                   isSelected
-                    ? "bg-rose-gradient text-white shadow-md shadow-rose-200/40"
+                    ? "bg-rose-gradient text-white shadow-md shadow-rose-200/40 scale-105"
                     : isToday
                     ? "bg-rose-100 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400"
                     : hasEvent
@@ -233,7 +228,7 @@ export default function CalendarPage() {
                 <span>{day}</span>
                 {/* Event dot indicator */}
                 {hasEvent && !isSelected && (
-                  <span className="absolute bottom-1 h-1.5 w-1.5 rounded-full bg-rose-400"></span>
+                  <span className="absolute bottom-1 h-1.5 w-1.5 rounded-full bg-rose-400 animate-pulse"></span>
                 )}
               </button>
             );
@@ -248,9 +243,9 @@ export default function CalendarPage() {
             Выберите дату на календаре выше, чтобы посмотреть события или добавить новое.
           </div>
         ) : (
-          <div className="glass-card rounded-2xl p-5">
-            <h3 className="font-extrabold text-slate-800 dark:text-rose-100 text-sm mb-4">
-              События {selectedDay} {monthNames[month].toLowerCase().slice(0, -1)}я
+          <div className="glass-card rounded-3xl p-5">
+            <h3 className="font-black text-slate-800 dark:text-rose-100 text-sm mb-4">
+              События {selectedDay} {monthNamesGenitive[month]}
             </h3>
 
             {selectedDayEvents.length > 0 ? (
@@ -258,30 +253,46 @@ export default function CalendarPage() {
                 {selectedDayEvents.map((event) => {
                   const eventDate = new Date(event.date);
                   const yearsDiff = year - eventDate.getFullYear();
+                  const isCreatorMe = event.createdById === user?.telegramId;
 
                   return (
                     <div key={event.id} className="relative">
                       {/* Timeline Node Icon (positioned absolutely on the left border) */}
-                      <div className="absolute left-[-33px] top-0.5 h-5 w-5 rounded-full bg-rose-gradient flex items-center justify-center text-white text-[9px] shadow-sm">
+                      <div className="absolute left-[-33px] top-1.5 h-5.5 w-5.5 rounded-full bg-rose-gradient flex items-center justify-center text-white text-[11px] shadow-sm">
                         {getEventIcon(event.title)}
                       </div>
+                      
                       {/* Timeline Card */}
-                      <div className="p-3 bg-white/40 dark:bg-slate-900/40 border border-rose-100/50 dark:border-rose-950/10 rounded-xl">
-                        <div className="flex items-center justify-between gap-2">
-                          <h4 className="font-bold text-xs text-slate-800 dark:text-rose-100 leading-tight">
-                            {event.title}
-                          </h4>
-                          {yearsDiff > 0 && (
-                            <span className="text-[9px] font-black text-rose-500 bg-rose-50 dark:bg-rose-950/30 px-1.5 py-0.5 rounded-full uppercase tracking-wider flex-shrink-0">
-                              {getYearPlural(yearsDiff)}
-                            </span>
+                      <div className="p-4 bg-white/40 dark:bg-slate-900/40 border border-rose-100/50 dark:border-rose-950/10 rounded-2xl flex items-center justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h4 className="font-extrabold text-sm text-slate-800 dark:text-rose-100 leading-tight">
+                              {event.title}
+                            </h4>
+                            {yearsDiff > 0 && (
+                              <span className="text-[9px] font-black text-rose-500 bg-rose-50 dark:bg-rose-950/30 px-1.5 py-0.5 rounded-full uppercase tracking-wider flex-shrink-0">
+                                {getYearPlural(yearsDiff)}
+                              </span>
+                            )}
+                          </div>
+                          {event.description && (
+                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 whitespace-pre-wrap leading-relaxed">
+                              {event.description}
+                            </p>
                           )}
+                          <span className="text-[8px] font-extrabold text-slate-400 dark:text-slate-500 bg-slate-100/50 dark:bg-slate-900/50 px-1.5 py-0.5 rounded-md mt-2 inline-block">
+                            Добавил(а): {isCreatorMe ? "Вы" : (partner?.firstName || "Партнер")}
+                          </span>
                         </div>
-                        {event.description && (
-                          <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 whitespace-pre-wrap leading-relaxed">
-                            {event.description}
-                          </p>
-                        )}
+
+                        {/* Delete Event Button */}
+                        <button
+                          onClick={() => handleDeleteEvent(event.id)}
+                          className="h-8 w-8 rounded-lg bg-red-50 hover:bg-red-100 dark:bg-red-950/20 text-red-500 flex items-center justify-center transition-all active:scale-95 flex-shrink-0"
+                          title="Удалить знаменательную дату"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
                       </div>
                     </div>
                   );
@@ -297,69 +308,6 @@ export default function CalendarPage() {
           </div>
         )}
       </div>
-
-      {/* Create Event Modal */}
-      {isModalOpen && selectedDay !== null && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-fade-in">
-          <form
-            onSubmit={handleSubmit}
-            className="glass-card rounded-3xl w-full max-w-sm p-6 shadow-2xl flex flex-col gap-4 animate-float"
-          >
-            <div>
-              <h3 className="text-lg font-bold text-slate-800 dark:text-rose-100 flex items-center gap-1.5">
-                Запомнить дату <PartyPopper className="h-5 w-5 text-rose-500" />
-              </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                Добавьте знаменательное событие на {selectedDay} {monthNames[month].toLowerCase().slice(0, -1)}я
-              </p>
-            </div>
-
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                Название события
-              </label>
-              <input
-                type="text"
-                required
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="Годовщина встречи, день рождения..."
-                className="h-11 px-4 rounded-xl border border-rose-200 dark:border-rose-950/50 bg-white/50 dark:bg-slate-900/50 text-slate-800 dark:text-rose-100 text-xs outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400 transition-all"
-              />
-            </div>
-
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                Описание (необязательно)
-              </label>
-              <textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Наши воспоминания о встрече или идеи для подарков..."
-                rows={3}
-                className="p-3.5 rounded-xl border border-rose-200 dark:border-rose-950/50 bg-white/50 dark:bg-slate-900/50 text-slate-800 dark:text-rose-100 text-xs outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400 resize-none transition-all"
-              />
-            </div>
-
-            <div className="flex gap-3 mt-4">
-              <button
-                type="button"
-                onClick={() => setIsModalOpen(false)}
-                className="flex-1 h-11 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-900 dark:hover:bg-slate-800 dark:text-slate-300 text-xs font-bold transition-all"
-              >
-                Отмена
-              </button>
-              <button
-                type="submit"
-                disabled={submitting}
-                className="flex-1 h-11 rounded-xl bg-rose-gradient hover:opacity-95 disabled:opacity-50 text-white text-xs font-bold shadow-md shadow-rose-200 transition-all active:scale-95"
-              >
-                {submitting ? "Сохраняем..." : "Сохранить"}
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
     </div>
   );
 }

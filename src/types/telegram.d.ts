@@ -64,6 +64,7 @@ interface TelegramWebApp {
     selectionChanged: () => void;
   };
   openTelegramLink?: (url: string) => void;
+  showConfirm?: (message: string, callback: (confirmed: boolean) => void) => void;
   ready: () => void;
   expand: () => void;
   close: () => void;

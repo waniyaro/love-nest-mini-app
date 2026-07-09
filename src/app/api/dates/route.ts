@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { authenticateTelegramUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { sendTelegramNotification } from "@/lib/bot";
@@ -9,6 +11,30 @@ export async function GET(req: Request) {
   }
 
   try {
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get("id");
+
+    if (id) {
+      const date = await prisma.dateEvent.findUnique({
+        where: { id },
+        include: {
+          photoRelation: true,
+        },
+      });
+
+      if (!date || date.coupleId !== authResult.couple.id) {
+        return Response.json({ error: "Date event not found" }, { status: 404 });
+      }
+
+      const responseDate = {
+        ...date,
+        photo: date.photoRelation?.photo || null,
+        photoRelation: undefined,
+      };
+
+      return Response.json({ date: responseDate });
+    }
+
     const dates = await prisma.dateEvent.findMany({
       where: { coupleId: authResult.couple.id },
       orderBy: { dateTime: "asc" },
@@ -128,7 +154,23 @@ export async function PATCH(req: Request) {
     }
 
     if (body.photo !== undefined) {
-      updateData.photo = body.photo;
+      if (body.photo) {
+        updateData.photoRelation = {
+          upsert: {
+            create: { photo: body.photo },
+            update: { photo: body.photo },
+          },
+        };
+      } else {
+        const existingPhoto = await prisma.dateEventPhoto.findUnique({
+          where: { dateEventId: id },
+        });
+        if (existingPhoto) {
+          updateData.photoRelation = {
+            delete: true,
+          };
+        }
+      }
     }
 
     if (body.isCompleted !== undefined) {

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
+import { useRouter, usePathname } from "next/navigation";
 
 // Capture tgWebAppStartParam synchronously at module load time before Next.js Router strips it
 let initialStartParam: string | null = null;
@@ -42,6 +43,35 @@ export function TelegramProvider({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState<string | null>(null);
 
   const [botUsername, setBotUsername] = useState(process.env.NEXT_PUBLIC_BOT_USERNAME || "IStwo_bot");
+
+  const router = useRouter();
+  const pathname = usePathname();
+
+  // 1. BackButton click handler registration & cleanup
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.Telegram?.WebApp) {
+      const tg = window.Telegram.WebApp;
+      const handleBack = () => {
+        router.back();
+      };
+      tg.BackButton.onClick(handleBack);
+      return () => {
+        tg.BackButton.offClick(handleBack);
+      };
+    }
+  }, [router]);
+
+  // 2. BackButton visibility toggle depending on route pathname
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.Telegram?.WebApp) {
+      const tg = window.Telegram.WebApp;
+      if (pathname === "/") {
+        tg.BackButton.hide();
+      } else {
+        tg.BackButton.show();
+      }
+    }
+  }, [pathname]);
 
   const fetchCoupleData = useCallback(async (dataStr: string) => {
     try {

@@ -5,7 +5,8 @@ export const dynamic = "force-dynamic";
 import { useTelegram } from "@/components/TelegramProvider";
 import { useState } from "react";
 import Link from "next/link";
-import { Heart, Calendar, Share2, Plus, Settings, HeartOff, Star, ChevronRight, Check } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Heart, CalendarHeart, Gift, Share2, Plus, Settings, HeartOff, Star, ChevronRight, Check, X } from "lucide-react";
 
 const quotes = [
   "С тобой каждый день — настоящий праздник",
@@ -19,48 +20,51 @@ const quotes = [
 
 export default function Dashboard() {
   const { user, partner, couple, refetch, initData, botUsername } = useTelegram();
+  const router = useRouter();
   const [copied, setCopied] = useState(false);
   const [saving, setSaving] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isBreakingUp, setIsBreakingUp] = useState(false);
-
-  // Add Event Modal State
-  const [isAddingEvent, setIsAddingEvent] = useState(false);
-  const [eventTitle, setEventTitle] = useState("");
-  const [eventDescription, setEventDescription] = useState("");
-  const [eventDate, setEventDate] = useState("");
-  const [creatingEvent, setCreatingEvent] = useState(false);
-
   // Edit Start Date inside Settings state
   const [selectedDate, setSelectedDate] = useState(
     couple?.startDate ? new Date(couple.startDate).toISOString().split("T")[0] : ""
   );
 
   const handleBreakup = async () => {
-    const confirmed = window.confirm("Вы уверены, что хотите разорвать пару? Это сотрет общую историю и свидания!");
-    if (!confirmed) return;
+    const message = "Вы уверены, что хотите разорвать пару? Это сотрет общую историю и свидания!";
+    const proceedBreakup = async () => {
+      setIsBreakingUp(true);
+      try {
+        const res = await fetch("/api/couple/breakup", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${initData}`,
+          },
+        });
 
-    setIsBreakingUp(true);
-    try {
-      const res = await fetch("/api/couple/breakup", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${initData}`,
-        },
-      });
-
-      if (res.ok) {
-        setIsSettingsOpen(false);
-        await refetch();
-      } else {
-        console.error("Failed to break up couple:", await res.text());
-        alert("Не удалось разорвать пару. Попробуйте еще раз.");
+        if (res.ok) {
+          setIsSettingsOpen(false);
+          await refetch();
+        } else {
+          console.error("Failed to break up couple:", await res.text());
+          alert("Не удалось разорвать пару. Попробуйте еще раз.");
+        }
+      } catch (e) {
+        console.error(e);
+        alert("Сетевая ошибка при разрыве пары.");
+      } finally {
+        setIsBreakingUp(false);
       }
-    } catch (e) {
-      console.error(e);
-      alert("Сетевая ошибка при разрыве пары.");
-    } finally {
-      setIsBreakingUp(false);
+    };
+
+    if (typeof window !== "undefined" && window.Telegram?.WebApp?.showConfirm) {
+      window.Telegram.WebApp.showConfirm(message, (confirmed) => {
+        if (confirmed) proceedBreakup();
+      });
+    } else {
+      if (window.confirm(message)) {
+        proceedBreakup();
+      }
     }
   };
 
@@ -102,40 +106,6 @@ export default function Dashboard() {
       console.error(e);
     } finally {
       setSaving(false);
-    }
-  };
-
-  const handleCreateEvent = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!eventTitle || !eventDate) return;
-    setCreatingEvent(true);
-    try {
-      const res = await fetch("/api/calendar", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${initData}`,
-        },
-        body: JSON.stringify({
-          title: eventTitle,
-          description: eventDescription,
-          date: new Date(eventDate).toISOString(),
-        }),
-      });
-
-      if (res.ok) {
-        setIsAddingEvent(false);
-        setEventTitle("");
-        setEventDescription("");
-        setEventDate("");
-        alert("Событие добавлено в ваш календарь!");
-      } else {
-        alert("Не удалось добавить событие.");
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setCreatingEvent(false);
     }
   };
 
@@ -287,8 +257,8 @@ export default function Dashboard() {
 
         {couple?.startDate ? (
           <button
-            onClick={() => setIsAddingEvent(true)}
-            className="mt-6 flex items-center gap-1.5 px-5 py-2.5 rounded-full bg-rose-50 hover:bg-rose-100 text-rose-600 dark:bg-rose-950/40 dark:hover:bg-rose-900/40 dark:text-rose-300 text-xs font-extrabold shadow-sm transition-all"
+            onClick={() => router.push("/calendar/new")}
+            className="mt-6 flex items-center gap-1.5 px-5 py-2.5 rounded-full bg-rose-50 hover:bg-rose-100 text-rose-600 dark:bg-rose-950/40 dark:hover:bg-rose-900/40 dark:text-rose-300 text-xs font-extrabold shadow-sm transition-all active:scale-95"
           >
             <Plus className="h-3.5 w-3.5" />
             Добавить знаменательную дату
@@ -299,7 +269,7 @@ export default function Dashboard() {
               setSelectedDate("");
               setIsSettingsOpen(true);
             }}
-            className="mt-6 flex items-center gap-1.5 px-5 py-2.5 rounded-full bg-rose-50 hover:bg-rose-100 text-rose-600 dark:bg-rose-950/40 dark:hover:bg-rose-900/40 dark:text-rose-300 text-xs font-extrabold shadow-sm transition-all"
+            className="mt-6 flex items-center gap-1.5 px-5 py-2.5 rounded-full bg-rose-50 hover:bg-rose-100 text-rose-600 dark:bg-rose-950/40 dark:hover:bg-rose-900/40 dark:text-rose-300 text-xs font-extrabold shadow-sm transition-all active:scale-95"
           >
             <Plus className="h-3.5 w-3.5" />
             Задать дату начала
@@ -314,7 +284,7 @@ export default function Dashboard() {
           <div className="flex items-center justify-between">
             <div className="flex flex-col">
               <span className="text-sm font-bold text-slate-800 dark:text-rose-100 flex items-center gap-1">
-                Связать аккаунты <Heart className="h-4 w-4 text-rose-400 fill-rose-400/20" />
+                Связать аккаунты <Heart className="h-4 w-4 text-rose-500 fill-rose-500/20" />
               </span>
               <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400 mt-0.5 max-w-[220px]">
                 Отправьте пригласительную ссылку вашей второй половинке
@@ -350,30 +320,30 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Grid: Calendar & Wishlist (Now working Links) */}
+      {/* Grid: Calendar & Wishlist */}
       <div className="grid grid-cols-2 gap-4">
         <Link
           href="/calendar"
-          className="glass-card rounded-2xl p-5 flex flex-col justify-between h-32 relative overflow-hidden group hover:scale-[1.02] transition-transform duration-300 bg-gradient-to-br from-rose-50/40 to-transparent dark:from-rose-950/10"
+          className="glass-card rounded-3xl p-5 flex flex-col justify-between h-36 relative overflow-hidden group hover:scale-[1.02] transition-transform duration-300 bg-gradient-to-br from-rose-50/40 to-transparent dark:from-rose-950/10"
         >
           <div className="h-9 w-9 rounded-xl bg-rose-100 dark:bg-rose-950/50 flex items-center justify-center text-rose-500 shadow-sm">
-            <Calendar className="h-5 w-5" />
+            <CalendarHeart className="h-5 w-5" />
           </div>
           <div>
-            <span className="text-[9px] font-extrabold text-rose-400 uppercase tracking-wider block">События</span>
-            <span className="text-xs font-bold text-slate-700 dark:text-slate-300 block mt-1">Знаменательные даты</span>
+            <span className="text-[10px] font-extrabold text-rose-400 uppercase tracking-wider block">События</span>
+            <span className="text-sm font-bold text-slate-700 dark:text-slate-300 block mt-1">Знаменательные даты</span>
           </div>
         </Link>
         <Link
           href="/wishlist"
-          className="glass-card rounded-2xl p-5 flex flex-col justify-between h-32 relative overflow-hidden group hover:scale-[1.02] transition-transform duration-300 bg-gradient-to-br from-indigo-50/40 to-transparent dark:from-indigo-950/10"
+          className="glass-card rounded-3xl p-5 flex flex-col justify-between h-36 relative overflow-hidden group hover:scale-[1.02] transition-transform duration-300 bg-gradient-to-br from-indigo-50/40 to-transparent dark:from-indigo-950/10"
         >
           <div className="h-9 w-9 rounded-xl bg-indigo-100 dark:bg-indigo-950/50 flex items-center justify-center text-indigo-500 shadow-sm">
-            <Heart className="h-5 w-5 fill-indigo-500/10" />
+            <Gift className="h-5 w-5 fill-indigo-500/10" />
           </div>
           <div>
-            <span className="text-[9px] font-extrabold text-indigo-400 uppercase tracking-wider block">Наши мечты</span>
-            <span className="text-xs font-bold text-slate-700 dark:text-slate-300 block mt-1">Общий вишлист</span>
+            <span className="text-[10px] font-extrabold text-indigo-400 uppercase tracking-wider block">Наши мечты</span>
+            <span className="text-sm font-bold text-slate-700 dark:text-slate-300 block mt-1">Общий вишлист</span>
           </div>
         </Link>
       </div>
@@ -395,88 +365,20 @@ export default function Dashboard() {
         <ChevronRight className="h-5 w-5 text-slate-400" />
       </Link>
 
-      {/* Add Event Modal */}
-      {isAddingEvent && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-fade-in">
-          <form
-            onSubmit={handleCreateEvent}
-            className="glass-card rounded-3xl w-full max-w-sm p-6 shadow-2xl flex flex-col gap-4 animate-float"
-          >
-            <div>
-              <h3 className="text-lg font-bold text-slate-800 dark:text-rose-100 flex items-center gap-1.5">
-                Добавить событие
-              </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                Оно автоматически появится в вашем общем календаре!
-              </p>
-            </div>
-
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                Название
-              </label>
-              <input
-                type="text"
-                required
-                value={eventTitle}
-                onChange={(e) => setEventTitle(e.target.value)}
-                placeholder="Годовщина встречи, день рождения..."
-                className="h-11 px-4 rounded-xl border border-rose-200 dark:border-rose-950/50 bg-white/50 dark:bg-slate-900/50 text-slate-800 dark:text-rose-100 text-base outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400 transition-all"
-              />
-            </div>
-
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                Дата
-              </label>
-              <input
-                type="date"
-                required
-                value={eventDate}
-                onChange={(e) => setEventDate(e.target.value)}
-                className="h-11 px-4 rounded-xl border border-rose-200 dark:border-rose-950/50 bg-white/50 dark:bg-slate-900/50 text-slate-800 dark:text-rose-100 text-base outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400 transition-all"
-              />
-            </div>
-
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                Описание (необязательно)
-              </label>
-              <textarea
-                value={eventDescription}
-                onChange={(e) => setEventDescription(e.target.value)}
-                placeholder="Детали знаменательного события..."
-                rows={3}
-                className="p-3.5 rounded-xl border border-rose-200 dark:border-rose-950/50 bg-white/50 dark:bg-slate-900/50 text-slate-800 dark:text-rose-100 text-base outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400 resize-none transition-all"
-              />
-            </div>
-
-            <div className="flex gap-3 mt-2">
-              <button
-                type="button"
-                onClick={() => setIsAddingEvent(false)}
-                className="flex-1 h-11 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-900 dark:hover:bg-slate-800 dark:text-slate-300 text-xs font-bold transition-all"
-              >
-                Отмена
-              </button>
-              <button
-                type="submit"
-                disabled={creatingEvent || !eventTitle || !eventDate}
-                className="flex-1 h-11 rounded-xl bg-rose-gradient hover:opacity-95 disabled:opacity-50 text-white text-xs font-bold shadow-md shadow-rose-200 transition-all active:scale-95"
-              >
-                {creatingEvent ? "Создаем..." : "Создать"}
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
-
       {/* Settings Modal */}
       {isSettingsOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-fade-in">
-          <div className="glass-card rounded-3xl w-full max-w-sm p-6 shadow-2xl animate-float">
-            <h3 className="text-lg font-bold text-slate-800 dark:text-rose-100 mb-2 flex items-center gap-1.5">
-              Настройки отношений ⚙️
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 backdrop-blur-sm p-4 overflow-y-auto animate-fade-in" onClick={() => setIsSettingsOpen(false)}>
+          <div className="glass-card rounded-3xl w-full max-w-sm p-6 shadow-2xl relative mt-12" onClick={(e) => e.stopPropagation()}>
+            {/* Close button at top right */}
+            <button
+              onClick={() => setIsSettingsOpen(false)}
+              className="absolute right-4 top-4 h-8 w-8 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-800 flex items-center justify-center text-slate-500 transition-all"
+            >
+              <X className="h-4 w-4" />
+            </button>
+
+            <h3 className="text-lg font-bold text-slate-800 dark:text-rose-100 mb-2 flex items-center gap-2">
+              <Settings className="h-5 w-5 text-slate-500" /> Настройки отношений
             </h3>
             
             <div className="my-6 flex flex-col items-center justify-center p-4 bg-slate-50/50 dark:bg-slate-900/30 rounded-2xl border border-rose-100/30 dark:border-rose-950/10 text-center">
@@ -515,32 +417,10 @@ export default function Dashboard() {
                     </div>
                   </div>
 
-                  {/* Share Link inside Settings (when connected, just in case) */}
-                  <div className="w-full flex flex-col gap-1 mt-4 text-left border-t border-slate-200/50 dark:border-slate-800/50 pt-4">
-                    <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                      Ваша ссылка-приглашение:
-                    </label>
-                    <div className="flex items-center gap-2 bg-white/30 dark:bg-slate-900/30 rounded-xl p-2 border border-rose-100/50 dark:border-rose-950/20">
-                      <input
-                        type="text"
-                        readOnly
-                        value={`https://t.me/${botUsername}?start=couple_${couple?.id || ""}`}
-                        onClick={(e) => (e.target as HTMLInputElement).select()}
-                        className="flex-1 bg-transparent text-[10px] font-mono text-slate-600 dark:text-rose-200 outline-none select-all truncate"
-                      />
-                      <button
-                        onClick={handleShare}
-                        className="text-[8px] font-extrabold uppercase text-rose-400 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/30 px-1.5 py-0.5 rounded"
-                      >
-                        {copied ? "Скопировано!" : "Поделиться"}
-                      </button>
-                    </div>
-                  </div>
-
                   <button
                     onClick={handleBreakup}
                     disabled={isBreakingUp}
-                    className="mt-6 flex items-center justify-center gap-2 w-full h-10 rounded-xl bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white text-xs font-bold shadow-md shadow-red-200 dark:shadow-none transition-all"
+                    className="mt-6 flex items-center justify-center gap-2 w-full h-10 rounded-xl bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white text-xs font-bold shadow-md shadow-red-200 dark:shadow-none transition-all active:scale-95"
                   >
                     <HeartOff className="h-4 w-4" />
                     {isBreakingUp ? "Разрываем связь..." : "Разорвать пару"}
@@ -549,7 +429,7 @@ export default function Dashboard() {
               ) : (
                 <>
                   <div className="h-14 w-14 rounded-full bg-slate-100 dark:bg-slate-900 flex items-center justify-center text-slate-400 mb-3">
-                    🤍
+                    <Heart className="h-7 w-7 text-slate-400 stroke-1" />
                   </div>
                   <p className="text-sm font-semibold text-slate-600 dark:text-slate-400">
                     Вы пока не состоите в паре
@@ -559,7 +439,7 @@ export default function Dashboard() {
                   </p>
                   <button
                     onClick={handleShare}
-                    className="mt-5 w-full h-10 rounded-xl bg-rose-gradient text-white text-xs font-bold shadow-md transition-all"
+                    className="mt-5 w-full h-10 rounded-xl bg-rose-gradient text-white text-xs font-bold shadow-md transition-all active:scale-95"
                   >
                     {copied ? "Ссылка скопирована!" : "Поделиться ссылкой"}
                   </button>
