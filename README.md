@@ -1,36 +1,72 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# IS TWO — Telegram Mini App для пар
 
-## Getting Started
+IS TWO — приватное веб-приложение (Telegram Mini App), созданное для совместного использования парами. Приложение позволяет отслеживать знаменательные даты, вести общие списки желаний, сохранять отзывы о свиданиях и собирать общие подборки любимых вещей.
 
-First, run the development server:
+Доступ к приложению ограничен белым списком (whitelist) из двух Telegram ID.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+---
+
+## Архитектура и стек технологий
+
+* **Frontend & Backend**: [Next.js](https://nextjs.org/) (App Router, React 19).
+* **СУБД & ORM**: PostgreSQL (Supabase) + [Prisma](https://www.prisma.io/) (с поддержкой миграций и оптимизированным хранением изображений).
+* **Интеграция с Telegram**: 
+  * Telegram WebApp SDK (работа с BackButton, нативными подтверждениями `showConfirm`, тактильной отдачей `HapticFeedback`).
+  * Бот-оповещения на базе [GrammY](https://grammy.dev/) (автоматические уведомления партнера о действиях в реальном времени).
+* **Стилизация**: Tailwind CSS 4 + кастомный Glassmorphism дизайн.
+
+---
+
+## Ключевые возможности
+
+1. **Главный дашборд**: Счетчик дней отношений, интерактивный статус партнера, быстрый доступ к основным разделам и умная система приглашений.
+2. **Планирование свиданий (`/dates`)**: Возможность создать приглашение на свидание. Партнер получает оповещение через бота и может нативно принять или отклонить встречу. 
+3. **Памятный фотоальбом**: После даты проведения свидания открывается доступ к заполнению отзывов, выбору эмодзи-впечатлений и загрузке фото (сжатие на клиенте перед отправкой в БД).
+4. **Общий вишлист & Места (`/wishlist`)**: Разделение на физические подарки и места для посещения. Для мест реализована совместная шкала оценки интереса (от 1 до 5 сердечек).
+5. **Наше любимое (`/favorites`)**: Общие списки лучших фильмов, музыки, мест и прочего с возможностью оставлять личные отзывы с каждой стороны.
+6. **anniversary-календарь (`/calendar`)**: Годовщины и дни рождения с автоматическим расчетом возраста отношений и уведомлениями.
+
+---
+
+## Быстрый запуск
+
+### 1. Настройка окружения
+Создайте файл `.env` в корневой директории по шаблону `.env.example`:
+```env
+TELEGRAM_BOT_TOKEN="your_bot_token"
+NEXT_PUBLIC_BOT_USERNAME="your_bot_username"
+ALLOWED_TELEGRAM_IDS="id_1,id_2"
+DATABASE_URL="postgresql://...:6543/postgres?pgbouncer=true"
+DIRECT_URL="postgresql://...:5432/postgres"
+NODE_ENV="development"
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 2. Установка зависимостей
+```bash
+npm install
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 3. База данных
+Генерация клиента Prisma и применение миграций:
+```bash
+npx prisma generate
+DATABASE_URL=$DIRECT_URL npx prisma migrate dev
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### 4. Запуск приложения
+Запустите сервер разработки Next.js и бота в двух разных терминалах:
 
-## Learn More
+**Терминал 1 (Next.js):**
+```bash
+npm run dev
+```
 
-To learn more about Next.js, take a look at the following resources:
+**Терминал 2 (Telegram Bot Polling):**
+```bash
+npm run bot
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+---
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Детали оптимизации базы данных
+Чтобы предотвратить замедление `SELECT` запросов при выводе списков, тяжелые Base64 строки загружаемых фотографий вынесены в отдельные таблицы `DateEventPhoto` и `WishlistItemPhoto` (связь 1:1). Они запрашиваются через `include` только при открытии детальных страниц.
