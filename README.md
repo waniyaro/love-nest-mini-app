@@ -2,23 +2,6 @@
 
 IS TWO — приватное веб-приложение (Telegram Mini App), созданное для совместного использования парами. Приложение позволяет отслеживать знаменательные даты, вести общие списки желаний, сохранять отзывы о свиданиях и собирать общие подборки любимых вещей.
 
-Доступ к приложению ограничен белым списком (whitelist) из двух Telegram ID.
-
----
-
-## Скриншоты интерфейса
-*(Сделайте скриншоты вашего запущенного Mini App и сохраните их в папку `public/screenshots/`, чтобы они автоматически отобразились здесь)*
-
-| Главный экран | Детали свидания |
-| :---: | :---: |
-| ![Dashboard](public/screenshots/dashboard.png) | ![Date Details](public/screenshots/dates.png) |
-
-| Общий вишлист / Места | Календарь событий |
-| :---: | :---: |
-| ![Wishlist](public/screenshots/wishlist.png) | ![Calendar](public/screenshots/calendar.png) |
-
----
-
 ## Схема взаимодействия партнеров
 
 ```mermaid
@@ -60,45 +43,3 @@ flowchart TD
 
 ---
 
-## Быстрый запуск
-
-### 1. Настройка окружения
-Создайте файл `.env` в корневой директории по шаблону `.env.example`:
-```env
-TELEGRAM_BOT_TOKEN="your_bot_token"
-NEXT_PUBLIC_BOT_USERNAME="your_bot_username"
-ALLOWED_TELEGRAM_IDS="id_1,id_2"
-DATABASE_URL="postgresql://...:6543/postgres?pgbouncer=true"
-DIRECT_URL="postgresql://...:5432/postgres"
-NODE_ENV="development"
-```
-
-### 2. Установка зависимостей
-```bash
-npm install
-```
-
-### 3. База данных
-Генерация клиента Prisma и применение миграций:
-```bash
-npx prisma generate
-DATABASE_URL=$DIRECT_URL npx prisma migrate dev
-```
-
-### 4. Запуск приложения
-Запустите сервер разработки Next.js и бота в двух разных терминалах:
-
-**Терминал 1 (Next.js):**
-```bash
-npm run dev
-```
-
-**Терминал 2 (Telegram Bot Polling):**
-```bash
-npm run bot
-```
-
----
-
-## Детали оптимизации базы данных
-Чтобы предотвратить замедление `SELECT` запросов при выводе списков, тяжелые Base64 строки загружаемых фотографий вынесены в отдельные таблицы `DateEventPhoto` и `WishlistItemPhoto` (связь 1:1). Они запрашиваются через `include` только при открытии детальных страниц.
