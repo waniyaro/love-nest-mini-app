@@ -1,7 +1,18 @@
 # IS TWO — Telegram Mini App для пар
 
 <p align="center">
-  <img src="public/hero-banner.png" alt="IS TWO - Love Nest couples application" width="800">
+  <img src="https://img.shields.io/badge/Platform-Telegram_Mini_App-24A1DE?style=for-the-badge&logo=telegram&logoColor=white" alt="Telegram Mini App">
+  <img src="https://img.shields.io/badge/Next.js-v19.0-000000?style=for-the-badge&logo=next.js&logoColor=white" alt="Next.js">
+  <img src="https://img.shields.io/badge/Tailwind_CSS-v4.0-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white" alt="Tailwind CSS">
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Prisma_ORM-2D3748?logo=prisma&logoColor=white" alt="Prisma">
+  <img src="https://img.shields.io/badge/Database-PostgreSQL-4169E1?logo=postgresql&logoColor=white" alt="PostgreSQL">
+  <img src="https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white" alt="TypeScript">
+  <img src="https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white" alt="React 19">
+  <img src="https://img.shields.io/badge/grammY_Bot-F1C40F?logo=telegram&logoColor=white" alt="grammY Bot">
+  <img src="https://img.shields.io/badge/License-MIT-blue" alt="MIT License">
 </p>
 
 <p align="center">
