@@ -9,14 +9,7 @@
   <strong>Приватное пространство с доступом только для вашей пары.</strong>
 </p>
 
-<p align="center">
-  <img src="https://img.shields.io/badge/Platform-Telegram_Mini_App-24A1DE?style=for-the-badge&logo=telegram&logoColor=white" alt="Telegram Mini App">
-  <img src="https://img.shields.io/badge/Next.js-16.2-000000?style=for-the-badge&logo=next.js&logoColor=white" alt="Next.js">
-  <img src="https://img.shields.io/badge/Tailwind_CSS-v4.0-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white" alt="Tailwind CSS">
-  <img src="https://img.shields.io/badge/Prisma-ORM-2D3748?style=for-the-badge&logo=prisma&logoColor=white" alt="Prisma">
-  <img src="https://img.shields.io/badge/Database-PostgreSQL-4169E1?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL">
-  <img src="https://img.shields.io/badge/License-MIT-blue?style=for-the-badge" alt="MIT License">
-</p>
+
 
 ---
 
