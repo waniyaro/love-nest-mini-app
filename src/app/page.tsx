@@ -3,10 +3,25 @@
 export const dynamic = "force-dynamic";
 
 import { useTelegram } from "@/components/TelegramProvider";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Heart, CalendarHeart, Gift, Share2, Plus, Settings, HeartOff, Star, ChevronRight, Check, X } from "lucide-react";
+
+interface ConfettiParticle {
+  id: number;
+  color: string;
+  shape: string;
+  left: string;
+  top: string;
+  x: string;
+  y: string;
+  width?: string;
+  height?: string;
+  size?: string;
+  delay: number;
+  duration: string;
+}
 
 const quotes = [
   "С тобой каждый день — настоящий праздник",
@@ -29,6 +44,125 @@ export default function Dashboard() {
   const [selectedDate, setSelectedDate] = useState(
     couple?.startDate ? new Date(couple.startDate).toISOString().split("T")[0] : ""
   );
+
+  const [confetti, setConfetti] = useState<ConfettiParticle[]>([]);
+
+  const score = couple?.score ?? 0;
+  const [scaleWidth, setScaleWidth] = useState(0);
+
+  const getLevelInfo = (points: number) => {
+    const levels = [
+      { level: 1, name: "Начало пути 📋", threshold: 50 },
+      { level: 2, name: "Взаимный интерес 🌸", threshold: 120 },
+      { level: 3, name: "Первые свидания ☕", threshold: 220 },
+      { level: 4, name: "Романтика и нежность 🌹", threshold: 350 },
+      { level: 5, name: "Влюбленность 💕", threshold: 500 },
+      { level: 6, name: "Крепкая связь 🔒", threshold: 700 },
+      { level: 7, name: "Гармония и доверие 🔑", threshold: 950 },
+      { level: 8, name: "Единое целое 🧩", threshold: 1250 },
+      { level: 9, name: "Бесконечная любовь ♾️", threshold: 1600 },
+      { level: 10, name: "Идеальная пара 👑", threshold: 2000 },
+    ];
+
+    let activeLvl = levels[levels.length - 1];
+    let prevThreshold = 0;
+
+    for (let i = 0; i < levels.length; i++) {
+      if (points <= levels[i].threshold) {
+        activeLvl = levels[i];
+        prevThreshold = i > 0 ? levels[i - 1].threshold : 0;
+        break;
+      }
+    }
+
+    if (points > levels[levels.length - 1].threshold) {
+      prevThreshold = levels[levels.length - 2].threshold;
+    }
+
+    const currentLevelProgress = points - prevThreshold;
+    const levelRange = activeLvl.threshold - prevThreshold;
+    const percent = Math.min(100, Math.max(0, (currentLevelProgress / levelRange) * 100));
+
+    return {
+      level: activeLvl.level,
+      name: activeLvl.name,
+      nextThreshold: activeLvl.threshold,
+      prevThreshold,
+      percent
+    };
+  };
+
+  const levelInfo = getLevelInfo(score);
+  const progressPercentage = levelInfo.percent;
+  const prevThreshold = levelInfo.prevThreshold;
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setScaleWidth(progressPercentage);
+    }, 150);
+    return () => clearTimeout(timer);
+  }, [progressPercentage]);
+
+  const triggerConfetti = () => {
+    const colors = [
+      "#ff5c7d", "#ff859c", "#818cf8", "#f59e0b", 
+      "#10b981", "#3b82f6", "#ec4899", "#f43f5e", 
+      "#fbbf24", "#34d399", "#60a5fa", "#a78bfa"
+    ];
+    const newConfetti = Array.from({ length: 85 }, (_, i) => {
+      const side = i % 3;
+      let left = "50%";
+      let top = "50%";
+      let x = 0;
+      let y = 0;
+
+      if (side === 0) {
+        left = "-6px";
+        top = `${15 + Math.random() * 70}%`;
+        x = -110 - Math.random() * 130;
+        y = -70 - Math.random() * 120;
+      } else if (side === 1) {
+        left = "calc(100% + 6px)";
+        top = `${15 + Math.random() * 70}%`;
+        x = 110 + Math.random() * 130;
+        y = -70 - Math.random() * 120;
+      } else {
+        left = `${10 + Math.random() * 80}%`;
+        top = "-6px";
+        x = (Math.random() - 0.5) * 180;
+        y = -130 - Math.random() * 130;
+      }
+
+      return {
+        id: Math.random(),
+        color: colors[Math.floor(Math.random() * colors.length)],
+        shape: Math.random() > 0.45 ? "rect" : "circle",
+        x: `${x}px`,
+        y: `${y}px`,
+        left,
+        top,
+        width: Math.random() > 0.5 ? "4px" : "6px",
+        height: Math.random() > 0.5 ? "8px" : "10px",
+        size: Math.random() > 0.5 ? "5px" : "7px",
+        delay: Math.random() * 0.4,
+        duration: `${1.8 + Math.random() * 0.8}s`,
+      };
+    });
+    setConfetti(newConfetti);
+    
+    setTimeout(() => {
+      setConfetti([]);
+    }, 2800);
+  };
+
+  const prevLevelRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (prevLevelRef.current !== null && levelInfo.level > prevLevelRef.current) {
+      triggerConfetti();
+    }
+    prevLevelRef.current = levelInfo.level;
+  }, [levelInfo.level]);
 
   const handleBreakup = async () => {
     const message = "Вы уверены, что хотите разорвать пару? Это сотрет общую историю и свидания!";
@@ -275,6 +409,81 @@ export default function Dashboard() {
             Задать дату начала
           </button>
         )}
+      </div>
+
+      {/* Wrapper to layer confetti behind the scale card */}
+      <div className="relative overflow-visible">
+        {/* Confetti Particles Container (rendered behind the card, z-0) */}
+        <div className="absolute inset-0 pointer-events-none overflow-visible z-0">
+          {confetti.map((c) => {
+            const style = c.shape === "rect" ? {
+              left: c.left,
+              top: c.top,
+              backgroundColor: c.color,
+              width: c.width,
+              height: c.height,
+              "--confetti-x": c.x,
+              "--confetti-y": c.y,
+              "--confetti-duration": c.duration,
+              animationDelay: `${c.delay}s`,
+            } as React.CSSProperties : {
+              left: c.left,
+              top: c.top,
+              backgroundColor: c.color,
+              width: c.size,
+              height: c.size,
+              borderRadius: "50%",
+              "--confetti-x": c.x,
+              "--confetti-y": c.y,
+              "--confetti-duration": c.duration,
+              animationDelay: `${c.delay}s`,
+            } as React.CSSProperties;
+
+            return (
+              <div
+                key={c.id}
+                className="absolute pointer-events-none animate-confetti"
+                style={style}
+              />
+            );
+          })}
+        </div>
+
+        {/* Relationship Scale Widget (rendered in front, z-10, overflow-hidden) */}
+        <div className="glass-card rounded-3xl p-5 border border-rose-100/30 dark:border-rose-950/20 relative z-10 overflow-hidden transition-all duration-500">
+          <div className="flex justify-between items-center mb-3">
+            <div className="flex flex-col">
+              <span className="text-[9px] font-extrabold uppercase text-rose-400 dark:text-rose-300 tracking-wider">
+                Шкала отношений
+              </span>
+              <span className="text-sm font-black text-slate-800 dark:text-rose-100 flex items-center gap-1 mt-0.5">
+                Уровень {levelInfo.level}: <span className="text-rose-500">{levelInfo.name}</span>
+              </span>
+            </div>
+            <div className="text-right flex items-center gap-2">
+              <span className="text-xs font-black text-rose-500 bg-rose-50 dark:bg-rose-950/30 px-2 py-0.5 rounded-full">
+                {score} XP
+              </span>
+            </div>
+          </div>
+
+          {/* Progress Bar */}
+          <div className="h-3 w-full bg-slate-100 dark:bg-slate-900 rounded-full overflow-hidden p-[2px]">
+            <div
+              className="h-full bg-rose-gradient rounded-full transition-all duration-[1500ms] ease-out shadow-sm"
+              style={{ width: `${scaleWidth}%` }}
+            />
+          </div>
+
+          <div className="flex justify-between text-[8px] font-bold text-slate-400 dark:text-slate-500 mt-2 px-1">
+            <span>{prevThreshold} XP</span>
+            {levelInfo.level < 10 ? (
+              <span>До уровня {levelInfo.level + 1}: {levelInfo.nextThreshold - score} XP</span>
+            ) : (
+              <span>Максимальный уровень! 👑</span>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Share / Invite Partner (Shown only if not paired yet) */}

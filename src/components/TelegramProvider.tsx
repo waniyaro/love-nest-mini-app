@@ -13,6 +13,7 @@ if (typeof window !== "undefined") {
 interface Couple {
   id: string;
   startDate: string | null;
+  score: number;
 }
 
 interface User {

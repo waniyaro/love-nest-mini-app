@@ -24,6 +24,7 @@ function NewEventForm() {
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [isRecurring, setIsRecurring] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
   const monthNamesGenitive = [
@@ -48,6 +49,7 @@ function NewEventForm() {
           title: title.trim(),
           description: description.trim(),
           date: eventDate.toISOString(),
+          isRecurring,
         }),
       });
 
@@ -111,6 +113,21 @@ function NewEventForm() {
             rows={4}
             className="p-3.5 rounded-xl border border-rose-200 dark:border-rose-950/50 bg-white/50 dark:bg-slate-900/50 text-slate-800 dark:text-rose-100 text-sm outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400 resize-none transition-all"
           />
+        </div>
+
+        {/* Recurring Toggle */}
+        <div className="flex items-center gap-3 bg-white/40 dark:bg-slate-900/40 border border-rose-100/30 dark:border-rose-950/15 p-4 rounded-2xl select-none">
+          <input
+            type="checkbox"
+            id="isRecurring"
+            checked={isRecurring}
+            onChange={(e) => setIsRecurring(e.target.checked)}
+            className="h-4.5 w-4.5 accent-rose-500 rounded border-rose-200 cursor-pointer"
+          />
+          <label htmlFor="isRecurring" className="flex flex-col cursor-pointer">
+            <span className="text-xs font-extrabold text-slate-800 dark:text-rose-100">Повторять каждый год</span>
+            <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 mt-0.5">Событие будет автоматически появляться в календаре каждый год</span>
+          </label>
         </div>
 
         {/* Actions */}

@@ -319,3 +319,47 @@ body {
   filter: blur(0.2px);
   z-index: 10;
 }
+
+/* Pulsating Neon Glow for Anniversary Dates */
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 4px rgba(244, 63, 94, 0.4);
+    border-color: rgba(244, 63, 94, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 12px rgba(244, 63, 94, 0.8);
+    border-color: rgba(244, 63, 94, 0.8);
+  }
+}
+.animate-pulse-glow {
+  animation: pulse-glow 2s infinite ease-in-out;
+}
+
+/* Custom CSS Confetti Animations with 3D Flutter and rotation */
+@keyframes confetti-flutter {
+  0% {
+    transform: translate3d(0, 0, 0) rotateX(0deg) rotateY(0deg) rotateZ(0deg) scale(0);
+    opacity: 0;
+  }
+  12% {
+    opacity: 1;
+    transform: translate3d(calc(var(--confetti-x) * 0.12), calc(var(--confetti-y) * 0.12), 0) rotateX(150deg) rotateY(90deg) rotateZ(45deg) scale(1.1);
+  }
+  100% {
+    transform: translate3d(var(--confetti-x), var(--confetti-y), 0) rotateX(1080deg) rotateY(720deg) rotateZ(360deg) scale(0.2);
+    opacity: 0;
+  }
+}
+.animate-confetti {
+  animation: confetti-flutter var(--confetti-duration, 2.2s) cubic-bezier(0.1, 0.8, 0.2, 1) forwards;
+}
+
+/* Sketchy Circle Pen Drawing Animation */
+@keyframes sketch-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+.animate-sketch-draw {
+  animation: sketch-draw 1s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}

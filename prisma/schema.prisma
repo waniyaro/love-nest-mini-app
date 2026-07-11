@@ -11,6 +11,7 @@ model Couple {
   startDate DateTime? // The date when the couple started their relationship
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  score     Int      @default(0)
 
   users         User[]
   dates         DateEvent[]
@@ -58,6 +59,7 @@ model CalendarEvent {
   description      String?
   date             DateTime // Date of the event
   lastNotifiedYear Int?     // Track when the couple was notified of this anniversary in a given year
+  isRecurring      Boolean  @default(true)
   coupleId         String
   couple           Couple   @relation(fields: [coupleId], references: [id], onDelete: Cascade)
   createdById      String   // Telegram ID of the creator

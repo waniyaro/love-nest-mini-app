@@ -164,6 +164,18 @@ export async function PATCH(req: Request) {
       data: updateData,
     });
 
+    let scorePointsDiff = 0;
+    if (updatedItem.isPurchased && !currentItem.isPurchased) {
+      scorePointsDiff += 10;
+    } else if (!updatedItem.isPurchased && currentItem.isPurchased) {
+      scorePointsDiff -= 10;
+    }
+
+    if (scorePointsDiff !== 0) {
+      const { incrementCoupleScore } = await import("@/lib/score");
+      await incrementCoupleScore(authResult.couple.id, scorePointsDiff);
+    }
+
     // Notify partner if marked as purchased/visited
     if (authResult.partnerId && updatedItem.isPurchased && !currentItem.isPurchased) {
       const isPlace = updatedItem.type === "place";
@@ -209,9 +221,19 @@ export async function DELETE(req: Request) {
       return Response.json({ error: "Item not found" }, { status: 404 });
     }
 
+    let scorePointsDiff = 0;
+    if (currentItem.isPurchased) {
+      scorePointsDiff -= 10;
+    }
+
     await prisma.wishlistItem.delete({
       where: { id },
     });
+
+    if (scorePointsDiff !== 0) {
+      const { incrementCoupleScore } = await import("@/lib/score");
+      await incrementCoupleScore(authResult.couple.id, scorePointsDiff);
+    }
 
     return Response.json({ success: true });
   } catch (error) {

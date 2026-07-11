@@ -119,6 +119,8 @@ export async function PATCH(req: Request) {
     const body = await req.json();
     const updateData: any = {};
 
+    let scorePointsDiff = 0;
+
     // 1. Handle confirmation status (pending -> accepted/declined)
     if (body.status) {
       updateData.status = body.status;
@@ -132,6 +134,12 @@ export async function PATCH(req: Request) {
           `${statusEmoji} <b>Ответ на свидание!</b>\n\n<b>${authResult.user.firstName}</b> ${statusText} ваше приглашение на свидание <b>"${currentEvent.title}"</b>!`
         );
       }
+
+      if (body.status === "accepted" && currentEvent.status !== "accepted") {
+        scorePointsDiff += 15;
+      } else if (body.status !== "accepted" && currentEvent.status === "accepted") {
+        scorePointsDiff -= 15;
+      }
     }
 
     // 2. Handle feedback / reviews / photo / completed
@@ -140,17 +148,21 @@ export async function PATCH(req: Request) {
     if (body.feedback !== undefined) {
       if (isCreatorMe) {
         updateData.creatorFeedback = body.feedback;
+        const wasSet = !!currentEvent.creatorFeedback;
+        const isSetNow = !!body.feedback;
+        if (isSetNow && !wasSet) scorePointsDiff += 5;
+        if (!isSetNow && wasSet) scorePointsDiff -= 5;
       } else {
         updateData.partnerFeedback = body.feedback;
+        const wasSet = !!currentEvent.partnerFeedback;
+        const isSetNow = !!body.feedback;
+        if (isSetNow && !wasSet) scorePointsDiff += 5;
+        if (!isSetNow && wasSet) scorePointsDiff -= 5;
       }
     }
 
     if (body.emoji !== undefined) {
-      if (isCreatorMe) {
-        updateData.creatorEmoji = body.emoji;
-      } else {
-        updateData.partnerEmoji = body.emoji;
-      }
+      updateData[isCreatorMe ? "creatorEmoji" : "partnerEmoji"] = body.emoji;
     }
 
     if (body.photo !== undefined) {
@@ -181,6 +193,11 @@ export async function PATCH(req: Request) {
       where: { id },
       data: updateData,
     });
+
+    if (scorePointsDiff !== 0) {
+      const { incrementCoupleScore } = await import("@/lib/score");
+      await incrementCoupleScore(authResult.couple.id, scorePointsDiff);
+    }
 
     // Notify partner of feedback/rating
     if (body.feedback && body.emoji) {
@@ -221,9 +238,25 @@ export async function DELETE(req: Request) {
       return Response.json({ error: "Date event not found" }, { status: 404 });
     }
 
+    let scorePointsDiff = 0;
+    if (currentEvent.status === "accepted") {
+      scorePointsDiff -= 15;
+    }
+    if (currentEvent.creatorFeedback) {
+      scorePointsDiff -= 5;
+    }
+    if (currentEvent.partnerFeedback) {
+      scorePointsDiff -= 5;
+    }
+
     await prisma.dateEvent.delete({
       where: { id },
     });
+
+    if (scorePointsDiff !== 0) {
+      const { incrementCoupleScore } = await import("@/lib/score");
+      await incrementCoupleScore(authResult.couple.id, scorePointsDiff);
+    }
 
     return Response.json({ success: true });
   } catch (error) {

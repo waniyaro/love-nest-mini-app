@@ -15,7 +15,14 @@ export async function GET(req: Request) {
       where: { coupleId: authResult.couple.id },
       orderBy: { date: "asc" },
     });
-    return Response.json({ events });
+    const dates = await prisma.dateEvent.findMany({
+      where: { 
+        coupleId: authResult.couple.id,
+        status: { in: ["accepted", "pending"] },
+      },
+      orderBy: { dateTime: "asc" },
+    });
+    return Response.json({ events, dates });
   } catch (error) {
     console.error("Error fetching calendar events:", error);
     return Response.json({ error: "Internal Server Error" }, { status: 500 });
@@ -29,7 +36,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    const { title, description, date } = await req.json();
+    const { title, description, date, isRecurring } = await req.json();
     if (!title || !date) {
       return Response.json({ error: "Title and Date are required" }, { status: 400 });
     }
@@ -39,10 +46,14 @@ export async function POST(req: Request) {
         title,
         description,
         date: new Date(date),
+        isRecurring: isRecurring !== undefined ? isRecurring : true,
         coupleId: authResult.couple.id,
         createdById: authResult.user.telegramId,
       },
     });
+
+    const { incrementCoupleScore } = await import("@/lib/score");
+    await incrementCoupleScore(authResult.couple.id, 10);
 
     // Notify partner
     if (authResult.partnerId) {
@@ -88,6 +99,9 @@ export async function DELETE(req: Request) {
     await prisma.calendarEvent.delete({
       where: { id },
     });
+
+    const { incrementCoupleScore } = await import("@/lib/score");
+    await incrementCoupleScore(authResult.couple.id, -10);
 
     return Response.json({ success: true });
   } catch (error) {

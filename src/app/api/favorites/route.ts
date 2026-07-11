@@ -47,6 +47,9 @@ export async function POST(req: Request) {
       data,
     });
 
+    const { incrementCoupleScore } = await import("@/lib/score");
+    await incrementCoupleScore(authResult.couple.id, 5);
+
     return Response.json({ favorite });
   } catch (error) {
     console.error("Error creating favorite item:", error);
@@ -121,6 +124,9 @@ export async function DELETE(req: Request) {
     await prisma.favoriteItem.delete({
       where: { id },
     });
+
+    const { incrementCoupleScore } = await import("@/lib/score");
+    await incrementCoupleScore(authResult.couple.id, -5);
 
     return Response.json({ success: true });
   } catch (error) {

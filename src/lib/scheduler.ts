@@ -21,21 +21,11 @@ async function checkAnniversaries() {
       return;
     }
 
-    const currentYear = now.getFullYear();
-    
-    // Tomorrow's date
-    const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-    const tomorrowDay = tomorrow.getDate();
-    const tomorrowMonth = tomorrow.getMonth(); // 0-indexed
-    
-    // Find calendar events that have not been notified this year
+    // Normalize today to midnight 00:00:00
+    const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    // Find all calendar events
     const events = await prisma.calendarEvent.findMany({
-      where: {
-        OR: [
-          { lastNotifiedYear: null },
-          { lastNotifiedYear: { lt: currentYear } }
-        ]
-      },
       include: {
         couple: {
           include: {
@@ -52,32 +42,57 @@ async function checkAnniversaries() {
 
     for (const event of events) {
       const eventDate = new Date(event.date);
-      // Ensure the event happened in the past or current year
-      if (eventDate.getFullYear() > currentYear) {
+      
+      // If the event hasn't happened yet in the timeline, skip it
+      if (eventDate.getTime() > todayMidnight.getTime()) {
         continue;
       }
-      
-      // Match day and month of tomorrow
-      if (eventDate.getDate() === tomorrowDay && eventDate.getMonth() === tomorrowMonth) {
+
+      // Target year of the anniversary we are checking
+      let targetYear = todayMidnight.getFullYear();
+      let anniversaryDate = new Date(targetYear, eventDate.getMonth(), eventDate.getDate());
+
+      // If the anniversary date for targetYear has already passed, check next year's anniversary
+      if (anniversaryDate.getTime() < todayMidnight.getTime()) {
+        targetYear += 1;
+        anniversaryDate = new Date(targetYear, eventDate.getMonth(), eventDate.getDate());
+      }
+
+      // Calculate difference in days using normalized midnights
+      const diffTime = anniversaryDate.getTime() - todayMidnight.getTime();
+      const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
+      // Trigger notification exactly 7 days prior
+      if (diffDays === 7) {
+        // Check if we already notified for this specific targetYear of the event
+        if (event.lastNotifiedYear === targetYear) {
+          continue;
+        }
+
+        // If the event is not recurring, only trigger notifications if targetYear matches the eventDate's year
+        if (!event.isRecurring && targetYear !== eventDate.getFullYear()) {
+          continue;
+        }
+
         const users = event.couple.users;
-        const yearsDiff = currentYear - eventDate.getFullYear();
-        
+        const yearsDiff = targetYear - eventDate.getFullYear();
+
         let yearsText = "";
         if (yearsDiff > 0) {
           yearsText = ` (${getYearPlural(yearsDiff)})`;
         }
-        
-        const formattedTomorrowDate = `${tomorrowDay} ${monthNames[tomorrowMonth]}`;
-        const message = `🎉 <b>Скоро знаменательная дата!</b>\n\nЗавтра (<b>${formattedTomorrowDate}</b>) — годовщина события: <b>"${event.title}"</b>${yearsText}! ❤️\n\n<i>Не забудьте подготовить приятный сюрприз!</i> ✨`;
-        
+
+        const formattedTargetDate = `${anniversaryDate.getDate()} ${monthNames[anniversaryDate.getMonth()]}`;
+        const message = `🎉 <b>Скоро знаменательная дата!</b>\n\nРовно через неделю (<b>${formattedTargetDate}</b>) — годовщина события: <b>"${event.title}"</b>${yearsText}! ❤️\n\n<i>Не забудьте подготовить приятный сюрприз!</i> ✨`;
+
         for (const user of users) {
           await sendTelegramNotification(user.telegramId, message);
         }
-        
-        // Update database to mark as notified for this year
+
+        // Mark as notified for this targetYear
         await prisma.calendarEvent.update({
           where: { id: event.id },
-          data: { lastNotifiedYear: currentYear }
+          data: { lastNotifiedYear: targetYear }
         });
       }
     }
@@ -124,8 +139,6 @@ async function checkRecentDatesForFeedback() {
       const needsCreatorFeedback = !event.creatorFeedback;
       const needsPartnerFeedback = !event.partnerFeedback;
 
-      let notifiedAny = false;
-
       // Find the creator and partner users
       const creatorUser = users.find((u) => u.telegramId === event.createdById);
       const partnerUser = users.find((u) => u.telegramId !== event.createdById);
@@ -134,12 +147,10 @@ async function checkRecentDatesForFeedback() {
 
       if (needsCreatorFeedback && creatorUser) {
         await sendTelegramNotification(creatorUser.telegramId, reminderMessage);
-        notifiedAny = true;
       }
 
       if (needsPartnerFeedback && partnerUser) {
         await sendTelegramNotification(partnerUser.telegramId, reminderMessage);
-        notifiedAny = true;
       }
 
       // Mark as notified so we don't spam them
