@@ -10,7 +10,13 @@
 </p>
 
 
-
+| Directory/File | Function |
+|---|---|
+| [src/app/](file:///Users/waniyaro/.gemini/antigravity-ide/scratch/love-nest-mini-app/src/app) | Next.js routes, API handlers, layouts and pages. |
+| [src/components/](file:///Users/waniyaro/.gemini/antigravity-ide/scratch/love-nest-mini-app/src/components) | UI components (dashboards, cards, modals, form inputs). |
+| [src/lib/](file:///Users/waniyaro/.gemini/antigravity-ide/scratch/love-nest-mini-app/src/lib) | Shared utilities: Prisma Client ([prisma.ts](file:///Users/waniyaro/.gemini/antigravity-ide/scratch/love-nest-mini-app/src/lib/prisma.ts)), Telegram Bot Client ([bot.ts](file:///Users/waniyaro/.gemini/antigravity-ide/scratch/love-nest-mini-app/src/lib/bot.ts)), and scheduler ([scheduler.ts](file:///Users/waniyaro/.gemini/antigravity-ide/scratch/love-nest-mini-app/src/lib/scheduler.ts)). |
+| [prisma/schema.prisma](file:///Users/waniyaro/.gemini/antigravity-ide/scratch/love-nest-mini-app/prisma/schema.prisma) | Database schema defining models and relationships. |
+| [doctor.mjs](file:///Users/waniyaro/.gemini/antigravity-ide/scratch/love-nest-mini-app/doctor.mjs) | Diagnostic script to verify the local environment. |
 ---
 
 ## 🌸 Скриншоты интерфейса
