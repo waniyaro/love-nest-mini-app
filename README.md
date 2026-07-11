@@ -19,18 +19,6 @@
 | [doctor.mjs](file:///Users/waniyaro/.gemini/antigravity-ide/scratch/love-nest-mini-app/doctor.mjs) | Diagnostic script to verify the local environment. |
 ---
 
-## 🌸 Скриншоты интерфейса
-
-| Главный экран | Детали свидания |
-| :---: | :---: |
-| ![Dashboard](public/screenshots/dashboard.png) | ![Date Details](public/screenshots/dates.png) |
-
-| Общий вишлист / Места | Календарь событий |
-| :---: | :---: |
-| ![Wishlist](public/screenshots/wishlist.png) | ![Calendar](public/screenshots/calendar.png) |
-
----
-
 ## 🔄 Схема взаимодействия партнеров
 
 ```mermaid
